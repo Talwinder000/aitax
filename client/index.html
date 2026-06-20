@@ -122,7 +122,7 @@
 'use strict';
 
 /* ── Redirect already-logged-in users to dashboard ── */
-RV.requireGuest('dashboard.html');
+RV.requireGuest('client/dashboard.html');
 
 /* ══════════════════════════════════════════════════
    TAB SWITCHING
@@ -198,7 +198,7 @@ async function doLogin() {
   setBusy('login', true);
   try {
     await RV.signIn(email, pass);
-    window.location.href = 'dashboard.html';
+    window.location.href = 'client/dashboard.html';
   } catch (e) {
     showErr(RV.friendlyErr(e.code, e.message));
     setBusy('login', false);
@@ -214,7 +214,7 @@ async function doSignup() {
   setBusy('signup', true);
   try {
     await RV.signUp(email, pass);
-    window.location.href = 'dashboard.html';
+    window.location.href = 'client/dashboard.html';
   } catch (e) {
     showErr(RV.friendlyErr(e.code, e.message));
     setBusy('signup', false);
@@ -240,7 +240,7 @@ async function doPasskey() {
     // assert() just verifies the local credential — Firebase session must still be active
     const user = firebase.auth().currentUser;
     if (user) {
-      window.location.href = 'dashboard.html';
+      window.location.href = 'client/dashboard.html';
     } else {
       throw new Error('Session expired. Please log in with email or Google first, then biometrics will work next time.');
     }
