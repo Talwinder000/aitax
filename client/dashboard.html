@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>ReceiptVault AI — Dashboard</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="css/app.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="js/config.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/idb.js"></script>
+<script src="js/auth.js"></script>
+</head>
+<body>
+
+<div class="load-overlay" id="loadingOverlay"><div class="spinner"></div><p id="loadingMsg">Loading…</p></div>
+<div class="sb-overlay" id="sbOverlay"></div>
+
+<div class="app-shell">
+
+<!-- ═══ SIDEBAR ════════════════════════════════════════════════ -->
+<aside class="sidebar" id="sidebar">
+  <div class="logo-wrap">
+    <div class="logo-row">
+      <div class="logo-mark">
+        <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
+      </div>
+      <div>
+        <div class="logo-name">ReceiptVault AI</div>
+        <div class="logo-tag">Expense Intelligence</div>
+        <span class="plan-badge free" id="planBadge">Free</span>
+      </div>
+    </div>
+  </div>
+  <nav class="snav">
+    <div class="nav-sect">Main</div>
+    <button class="nav-item active" data-page="dashboard"><i class="fas fa-th-large"></i><span class="nav-lbl">Dashboard</span></button>
+    <button class="nav-item" data-page="upload"><i class="fas fa-cloud-upload-alt"></i><span class="nav-lbl">Upload Receipt</span></button>
+    <button class="nav-item" data-page="receipts"><i class="fas fa-receipt"></i><span class="nav-lbl">Receipts</span><span class="nav-badge" id="recBadge">0</span></button>
+    <div class="nav-sect">Insights</div>
+    <button class="nav-item" data-page="analytics"><i class="fas fa-chart-pie"></i><span class="nav-lbl">Analytics</span></button>
+    <button class="nav-item" data-page="reports"><i class="fas fa-file-alt"></i><span class="nav-lbl">Reports</span></button>
+    <div class="nav-sect">Account</div>
+    <button class="nav-item" onclick="location.href='pricing.html'"><i class="fas fa-rocket"></i><span class="nav-lbl">Upgrade</span></button>
+    <button class="nav-item" onclick="location.href='billing.html'"><i class="fas fa-credit-card"></i><span class="nav-lbl">Billing</span></button>
+    <button class="nav-item" data-page="settings"><i class="fas fa-cog"></i><span class="nav-lbl">Settings</span></button>
+  </nav>
+  <div class="sb-foot">
+    <div class="sb-stor-row"><span class="sb-foot-txt">Storage</span><span id="sbStorAmt" class="sb-foot-txt">0 receipts</span></div>
+    <div class="sb-bar"><div class="sb-bar-fill" id="sbBarFill" style="width:0%"></div></div>
+  </div>
+  <button class="sb-collapse-btn" id="collapseBtn" title="Collapse sidebar"><i class="fas fa-chevron-left"></i></button>
+</aside>
+
+<!-- ═══ MAIN ═══════════════════════════════════════════════════ -->
+<div class="main">
+
+<header class="topbar">
+  <div class="tb-l">
+    <button class="icon-btn mob-menu" id="mobMenuBtn"><i class="fas fa-bars"></i></button>
+    <div class="nav-hist">
+      <button class="nh-btn" id="navBack" disabled onclick="goBack()"><i class="fas fa-arrow-left"></i></button>
+      <button class="nh-btn" id="navHome" disabled onclick="goHome()"><i class="fas fa-home"></i></button>
+    </div>
+    <span class="page-ttl" id="pageTtl">Dashboard</span>
+  </div>
+  <div class="tb-r">
+    <div class="srch-wrap"><i class="fas fa-search"></i><input type="text" placeholder="Search receipts…" id="globalSearch"></div>
+    <div class="notif-w icon-btn"><i class="fas fa-bell"></i><span class="notif-dot"></span></div>
+    <button class="icon-btn" id="themeBtn" title="Toggle theme"><i class="fas fa-moon" id="themeIco"></i></button>
+    <div class="tb-user">
+      <div class="tb-av" id="tbAv">U</div>
+      <span class="tb-nm" id="tbNm">User</span>
+      <button class="logout-btn" id="logoutBtn" title="Log out"><i class="fas fa-sign-out-alt"></i></button>
+    </div>
+    <button class="new-btn" onclick="nav('upload')"><i class="fas fa-plus"></i><span>New Receipt</span></button>
+  </div>
+</header>
+
+<div class="body-scroll" id="bodyScroll">
+
+<!-- DASHBOARD -->
+<div class="page active" id="page-dashboard">
+  <div class="pg-hdr">
+    <div><h1>Dashboard</h1><p>Your expense overview at a glance</p></div>
+    <div class="pg-acts">
+      <button class="btn btn-sm" onclick="nav('reports')"><i class="fas fa-file-export"></i>Reports</button>
+      <button class="btn btn-sm" onclick="exportCSV()"><i class="fas fa-file-csv"></i>Export</button>
+    </div>
+  </div>
+  <div id="passkeyPromptWrap"></div>
+  <div id="limitBanner"></div>
+  <div class="stats-row" id="dashStats"></div>
+  <div class="g2 mb4">
+    <div class="card"><div class="card-ttl"><i class="fas fa-chart-bar"></i>Monthly Expenses</div><div class="cw"><canvas id="cMonth"></canvas></div></div>
+    <div class="card"><div class="card-ttl"><i class="fas fa-chart-pie"></i>By Category</div><div class="cw"><canvas id="cCat"></canvas></div></div>
+  </div>
+  <div class="card mb4"><div class="card-ttl"><i class="fas fa-store"></i>Top Vendors</div><div class="cw"><canvas id="cVend"></canvas></div></div>
+  <div class="card"><div class="card-ttl"><i class="fas fa-clock"></i>Recent Receipts</div><div id="recentList"></div></div>
+</div>
+
+<!-- UPLOAD -->
+<div class="page" id="page-upload">
+  <div class="pg-hdr"><div><h1>Upload Receipt</h1><p>Gemini Vision extracts all data automatically</p></div></div>
+  <div class="upload-zone" id="uploadZone">
+    <div class="uz-ico"><i class="fas fa-cloud-upload-alt"></i></div>
+    <h3>Drop receipt here or click to browse</h3>
+    <p>Supports JPG, PNG, JPEG, PDF — Gemini Vision reads and categorises automatically</p>
+    <div class="uz-types"><span class="type-badge">JPG</span><span class="type-badge">PNG</span><span class="type-badge">JPEG</span><span class="type-badge">PDF</span></div>
+  </div>
+  <input type="file" id="fileInp" accept="image/jpeg,image/png,image/jpg,application/pdf" style="display:none">
+  <div class="proc-panel" id="procPanel" style="display:none">
+    <div class="proc-row">
+      <div id="procThumb"></div>
+      <div class="proc-info">
+        <div class="proc-st"><div class="s-dot idle" id="sDot"></div><span id="sTxt">Ready</span></div>
+        <div class="prog-bar"><div class="prog-fill" id="pFill"></div></div>
+        <div class="dup-warn" id="dupWarn" style="display:none"><i class="fas fa-exclamation-triangle"></i><span id="dupMsg"></span></div>
+        <div class="field-grid" style="margin-top:12px">
+          <div class="field"><label>Vendor</label><input type="text" id="fVend" oninput="enableSave()"></div>
+          <div class="field"><label>Date</label><input type="date" id="fDate" oninput="enableSave()"></div>
+          <div class="field"><label>Subtotal ($)</label><input type="number" id="fSub" step="0.01"></div>
+          <div class="field"><label>Tax ($)</label><input type="number" id="fTax" step="0.01"></div>
+          <div class="field"><label>Total ($) <span id="catConf"></span></label><input type="number" id="fTotal" step="0.01" oninput="enableSave()"></div>
+          <div class="field"><label>Category</label>
+            <select id="fCat"><option>Fuel</option><option>Meals</option><option>Travel</option><option>Office Supplies</option><option>Inventory</option><option>Advertising</option><option>Utilities</option><option>Software</option><option>Vehicle</option><option>Insurance</option><option>Rent</option><option selected>Other</option></select>
+          </div>
+          <div class="field"><label>Payment</label>
+            <select id="fPay"><option>Credit Card</option><option>Debit Card</option><option>Cash</option><option>Bank Transfer</option><option>Check</option><option>Other</option></select>
+          </div>
+          <div class="field"><label>Receipt #</label><input type="text" id="fRnum" placeholder="Optional"></div>
+          <div class="field"><label>Notes</label><input type="text" id="fNotes" placeholder="Optional"></div>
+        </div>
+        <div id="qualityBadge" class="scan-quality-badge" style="display:none"></div>
+        <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+          <button class="btn btn-primary" id="saveBtn" disabled onclick="saveReceipt()"><i class="fas fa-save"></i>Save Receipt</button>
+          <button class="btn" onclick="clearUpload()"><i class="fas fa-times"></i>Clear</button>
+          <button class="btn btn-sm" onclick="runGemini()"><i class="fas fa-magic"></i>Re-scan OCR</button>
+        </div>
+        <div class="ins-panel" id="insPanel" style="display:none"><div class="ih"><i class="fas fa-lightbulb"></i>AI Insight</div><p id="insTxt"></p></div>
+      </div>
+    </div>
+  </div>
+  <!-- CamScanner-style image processor mounts here -->
+  <div id="scannerWrap" class="scanner-wrap" style="display:none"></div>
+</div>
+
+<!-- RECEIPTS -->
+<div class="page" id="page-receipts">
+  <div class="pg-hdr">
+    <div><h1>All Receipts</h1><p>Browse, search and manage your expense records</p></div>
+    <div class="pg-acts">
+      <button class="btn btn-sm" onclick="exportCSV()"><i class="fas fa-file-csv"></i>CSV</button>
+      <button class="btn btn-sm" onclick="exportExcel()"><i class="fas fa-file-excel"></i>Excel</button>
+      <button class="btn btn-sm" onclick="exportJSON()"><i class="fas fa-file-code"></i>JSON</button>
+    </div>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <div class="tbl-ctrl">
+      <select class="tc-sel" id="fCat" onchange="renderTable()"><option value="">All Categories</option></select>
+      <select class="tc-sel" id="fMon" onchange="renderTable()"><option value="">All Months</option></select>
+      <select class="tc-sel" id="fYr"  onchange="renderTable()"><option value="">All Years</option></select>
+      <select class="tc-sel" id="fVnd" onchange="renderTable()"><option value="">All Vendors</option></select>
+      <span class="tc-cnt" id="tblCnt"></span>
+    </div>
+    <div class="tbl-wrap">
+      <table class="data-tbl">
+        <thead><tr>
+          <th style="width:50px"></th>
+          <th data-sort="vendor">Vendor</th><th data-sort="date">Date</th>
+          <th data-sort="category">Category</th><th data-sort="total">Amount</th>
+          <th data-sort="tax">Tax</th><th data-sort="paymentMethod">Payment</th>
+          <th style="text-align:right">Actions</th>
+        </tr></thead>
+        <tbody id="rTbody"></tbody>
+      </table>
+    </div>
+    <div class="r-cards" id="rCards"></div>
+    <div class="pgn" id="pgWrap"></div>
+  </div>
+</div>
+
+<!-- ANALYTICS -->
+<div class="page" id="page-analytics">
+  <div class="pg-hdr"><div><h1>Analytics</h1><p>Deep dive into your spending patterns</p></div></div>
+  <div class="ins-grid" id="insGrid"></div>
+  <div class="g2 mb4">
+    <div class="card"><div class="card-ttl"><i class="fas fa-chart-pie"></i>Category Breakdown</div><div class="cw-lg"><canvas id="cCatB"></canvas></div></div>
+    <div class="card"><div class="card-ttl"><i class="fas fa-chart-line"></i>12-Month Trend</div><div class="cw-lg"><canvas id="cTrend"></canvas></div></div>
+  </div>
+  <div class="card"><div class="card-ttl"><i class="fas fa-chart-bar"></i>Top Vendors</div><div class="cw"><canvas id="cVendB"></canvas></div></div>
+</div>
+
+<!-- REPORTS -->
+<div class="page" id="page-reports">
+  <div class="pg-hdr">
+    <div><h1>Reports</h1><p>Generate and export expense summaries</p></div>
+    <div class="pg-acts">
+      <select class="tc-sel" id="rptYr" onchange="renderReports()"><option value="">All Years</option></select>
+      <select class="tc-sel" id="rptMon" onchange="renderReports()">
+        <option value="">All Months</option>
+        <option value="01">January</option><option value="02">February</option><option value="03">March</option>
+        <option value="04">April</option><option value="05">May</option><option value="06">June</option>
+        <option value="07">July</option><option value="08">August</option><option value="09">September</option>
+        <option value="10">October</option><option value="11">November</option><option value="12">December</option>
+      </select>
+      <button class="btn btn-sm" onclick="exportCSV()"><i class="fas fa-file-csv"></i>CSV</button>
+      <button class="btn btn-primary btn-sm" onclick="window.print()"><i class="fas fa-print"></i>Print</button>
+    </div>
+  </div>
+  <div id="rptContent"></div>
+</div>
+
+<!-- SETTINGS -->
+<div class="page" id="page-settings">
+  <div class="pg-hdr"><div><h1>Settings</h1><p>Configure ReceiptVault AI</p></div></div>
+  <div class="sett-sec">
+    <h3><i class="fas fa-key" style="color:var(--warn)"></i>Gemini API Key</h3>
+    <div class="sett-row">
+      <div>
+        <div class="sett-lbl">Google Gemini Vision API Key</div>
+        <div class="sett-desc">Required for OCR. Get yours at <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com</a></div>
+        <div class="api-row">
+          <input type="password" id="apiKeyInp" placeholder="AIza…" autocomplete="off">
+          <button class="icon-btn" onclick="toggleKeyVis()"><i class="fas fa-eye" id="keyEye"></i></button>
+          <button class="btn btn-primary btn-sm" onclick="saveApiKey()"><i class="fas fa-save"></i>Save</button>
+          <button class="btn btn-sm" onclick="testApiKey()"><i class="fas fa-plug"></i>Test</button>
+        </div>
+        <div class="api-st" id="apiSt"></div>
+      </div>
+    </div>
+    <div class="sett-row">
+      <div><div class="sett-lbl">Gemini Model</div><div class="sett-desc">AI model for receipt analysis</div></div>
+      <select class="model-sel" id="modelSel" onchange="saveModel()">
+        <option value="gemini-2.5-flash">gemini-2.5-flash (fast, recommended)</option>
+        <option value="gemini-2.5-pro">gemini-2.5-pro (most accurate)</option>
+        <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite (lightweight)</option>
+      </select>
+    </div>
+  </div>
+  <div class="sett-sec">
+    <h3><i class="fas fa-fingerprint" style="color:var(--acc)"></i>Biometric Login</h3>
+    <div class="sett-row">
+      <div><div class="sett-lbl">Face ID / Fingerprint</div><div class="sett-desc" id="bioDesc">Set up biometric login for faster sign-in.</div></div>
+      <button class="btn btn-sm" onclick="setupPasskey()"><i class="fas fa-fingerprint"></i>Set Up</button>
+    </div>
+    <div class="sett-row">
+      <div><div class="sett-lbl">Remove Biometric Login</div><div class="sett-desc">Delete saved passkey from this device</div></div>
+      <button class="btn btn-danger btn-sm" onclick="removePasskey()"><i class="fas fa-trash"></i>Remove</button>
+    </div>
+  </div>
+  <div class="sett-sec">
+    <h3><i class="fas fa-palette" style="color:var(--sec)"></i>Appearance</h3>
+    <div class="sett-row">
+      <div><div class="sett-lbl">Dark Mode</div><div class="sett-desc">Switch interface theme</div></div>
+      <button class="toggle" id="darkToggle" onclick="RV.toggleTheme()"></button>
+    </div>
+  </div>
+  <div class="sett-sec">
+    <h3><i class="fas fa-database" style="color:var(--acc)"></i>Data Management</h3>
+    <div class="sett-row"><div><div class="sett-lbl">Export Backup</div><div class="sett-desc">Download all receipts as JSON</div></div><button class="btn btn-sm" onclick="exportJSON()"><i class="fas fa-download"></i>Export</button></div>
+    <div class="sett-row"><div><div class="sett-lbl">Import Data</div><div class="sett-desc">Restore from JSON backup</div></div><button class="btn btn-sm" onclick="document.getElementById('importInp').click()"><i class="fas fa-upload"></i>Import</button><input type="file" id="importInp" accept=".json" style="display:none" onchange="importJSON(event)"></div>
+    <div class="sett-row"><div><div class="sett-lbl">Clear All Receipts</div><div class="sett-desc">Permanently delete all data</div></div><button class="btn btn-danger btn-sm" onclick="clearAll()"><i class="fas fa-trash"></i>Clear All</button></div>
+    <div class="sett-row"><div class="sett-lbl">Storage</div><span id="settStorage" style="color:var(--tx2);font-size:12px">Loading…</span></div>
+  </div>
+  <div class="sett-sec">
+    <h3><i class="fas fa-credit-card" style="color:var(--pur)"></i>Subscription</h3>
+    <div class="sett-row">
+      <div><div class="sett-lbl">Current Plan</div><div class="sett-desc">Manage your subscription</div></div>
+      <div style="display:flex;gap:8px">
+        <a href="pricing.html" class="btn btn-sm"><i class="fas fa-rocket"></i>Upgrade</a>
+        <a href="billing.html" class="btn btn-sm"><i class="fas fa-receipt"></i>Billing</a>
+      </div>
+    </div>
+  </div>
+  <div class="sett-sec">
+    <h3><i class="fas fa-info-circle" style="color:var(--acc)"></i>About</h3>
+    <div class="sett-row"><div class="sett-lbl">ReceiptVault AI</div><span style="color:var(--tx2);font-size:12px">v4.0 · Gemini Vision · Firebase · IndexedDB · Stripe</span></div>
+  </div>
+</div>
+
+</div><!-- /body-scroll -->
+</div><!-- /main -->
+</div><!-- /app-shell -->
+
+<!-- MODALS -->
+<div class="modal-bg" id="mView" onclick="if(event.target===this)RV.closeM('mView')">
+  <div class="modal modal-lg"><div class="modal-hd"><h3>Receipt Details</h3><button class="modal-x" onclick="RV.closeM('mView')"><i class="fas fa-times"></i></button></div><div id="mViewBody"></div></div>
+</div>
+<div class="modal-bg" id="mEdit" onclick="if(event.target===this)RV.closeM('mEdit')">
+  <div class="modal modal-sm"><div class="modal-hd"><h3>Edit Receipt</h3><button class="modal-x" onclick="RV.closeM('mEdit')"><i class="fas fa-times"></i></button></div><div id="mEditBody"></div></div>
+</div>
+<div class="modal-bg" id="mConfirm">
+  <div class="modal modal-sm">
+    <div class="modal-hd"><h3 id="mConfirmTitle">Confirm</h3><button class="modal-x" onclick="RV.closeM('mConfirm')"><i class="fas fa-times"></i></button></div>
+    <p id="mConfirmMsg" style="font-size:13px;color:var(--tx2);margin-bottom:18px;line-height:1.65"></p>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-sm" id="mConfirmCancel" onclick="RV.closeM('mConfirm')">Cancel</button>
+      <button class="btn btn-danger btn-sm" id="mConfirmOk">Confirm</button>
+    </div>
+  </div>
+</div>
+<div class="modal-bg" id="upgradeModal" onclick="if(event.target===this)RV.closeM('upgradeModal')">
+  <div class="modal modal-sm">
+    <div class="modal-hd"><h3><i class="fas fa-rocket" style="color:var(--warn)"></i> Upgrade Required</h3><button class="modal-x" onclick="RV.closeM('upgradeModal')"><i class="fas fa-times"></i></button></div>
+    <p style="font-size:13px;color:var(--tx2);margin-bottom:20px;line-height:1.65">You've reached the 200-receipt limit on the Free plan. Upgrade to Plus or Pro for unlimited receipts, cloud backup, AI categorization, and more.</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="location.href='pricing.html'"><i class="fas fa-rocket"></i>View Plans</button>
+      <button class="btn" onclick="RV.closeM('upgradeModal')">Maybe Later</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-stack" id="toastStack"></div>
+<!-- OpenCV.js — loaded async, calls window.onOpenCvReady when ready -->
+<script async src="https://docs.opencv.org/4.10.0/opencv.js" onload="window.onOpenCvReady && window.onOpenCvReady()"></script>
+<script src="js/scanner.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
