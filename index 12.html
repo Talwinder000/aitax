@@ -1,0 +1,2529 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ReceiptVault AI — Expense Intelligence</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+/* ═══════════════════════════════════════════════════════════
+   DESIGN TOKENS — Radiant Glow Theme
+   Light: soft white ground, vivid indigo→violet→pink gradient accents
+   Dark:  deep navy ground, neon indigo glow, same gradient family
+═══════════════════════════════════════════════════════════ */
+:root {
+  --bg:        #f4f6fc;
+  --bg2:       #eceffb;
+  --surface:   #ffffff;
+  --surface2:  #f8f9ff;
+  --border:    #e2e6f5;
+  --border2:   #cdd3ec;
+  --tx1:       #111827;
+  --tx2:       #4b5563;
+  --tx3:       #9ca3af;
+  --accent:    #4f46e5;
+  --accent-l:  #6366f1;
+  --accent-bg: rgba(79,70,229,0.08);
+  --accent-brd:rgba(79,70,229,0.25);
+  --glow1:     #6366f1;
+  --glow2:     #8b5cf6;
+  --glow3:     #ec4899;
+  --green:     #059669;
+  --green-bg:  rgba(5,150,105,0.09);
+  --amber:     #d97706;
+  --amber-bg:  rgba(217,119,6,0.09);
+  --red:       #dc2626;
+  --red-bg:    rgba(220,38,38,0.09);
+  --purple:    #7c3aed;
+  --purple-bg: rgba(124,58,237,0.09);
+  --teal:      #0891b2;
+  --teal-bg:   rgba(8,145,178,0.09);
+  --pink:      #db2777;
+  --pink-bg:   rgba(219,39,119,0.09);
+  --orange:    #ea580c;
+  --orange-bg: rgba(234,88,12,0.09);
+  --sky:       #0284c7;
+  --sky-bg:    rgba(2,132,199,0.09);
+  --shadow:    0 1px 4px rgba(17,24,39,.06), 0 4px 16px rgba(17,24,39,.06);
+  --shadow2:   0 8px 32px rgba(17,24,39,.12);
+  --glow-shadow: 0 0 0 rgba(99,102,241,0);
+  --radius:    10px;
+  --radius-lg: 16px;
+  --tape:      linear-gradient(180deg,#6366f1,#8b5cf6,#ec4899);
+  --gradient-radiant: linear-gradient(135deg,#4f46e5,#7c3aed,#db2777);
+  --sidebar-w: 228px;
+  --topbar-h:  58px;
+}
+[data-theme="dark"] {
+  --bg:        #07080f;
+  --bg2:       #0c0e1a;
+  --surface:   #12141f;
+  --surface2:  #171a28;
+  --border:    #232740;
+  --border2:   #2e3350;
+  --tx1:       #e8eaf6;
+  --tx2:       #8b92b8;
+  --tx3:       #4b5280;
+  --accent:    #6366f1;
+  --accent-l:  #818cf8;
+  --accent-bg: rgba(99,102,241,0.14);
+  --accent-brd:rgba(99,102,241,0.3);
+  --glow1:     #818cf8;
+  --glow2:     #a78bfa;
+  --glow3:     #f472b6;
+  --green:     #34d399;
+  --green-bg:  rgba(52,211,153,0.1);
+  --amber:     #fbbf24;
+  --amber-bg:  rgba(251,191,36,0.1);
+  --red:       #f87171;
+  --red-bg:    rgba(248,113,113,0.1);
+  --purple:    #a78bfa;
+  --purple-bg: rgba(167,139,250,0.1);
+  --teal:      #22d3ee;
+  --teal-bg:   rgba(34,211,238,0.1);
+  --pink:      #f472b6;
+  --pink-bg:   rgba(244,114,182,0.1);
+  --orange:    #fb923c;
+  --orange-bg: rgba(251,146,60,0.1);
+  --sky:       #38bdf8;
+  --sky-bg:    rgba(56,189,248,0.1);
+  --shadow:    0 1px 4px rgba(0,0,0,.3), 0 4px 16px rgba(0,0,0,.35);
+  --shadow2:   0 8px 32px rgba(0,0,0,.5);
+}
+
+/* ── RESET ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; scroll-behavior: smooth; }
+body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 14px; line-height: 1.5; background: var(--bg); color: var(--tx1);
+  overflow: hidden; transition: background .25s, color .25s; }
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 99px; }
+::-webkit-scrollbar-track { background: transparent; }
+button { font-family: inherit; cursor: pointer; }
+input, select, textarea { font-family: inherit; }
+a { color: var(--accent); text-decoration: none; }
+img { max-width: 100%; }
+
+/* ── LAYOUT ── */
+.app { display: flex; height: 100vh; overflow: hidden; }
+
+/* ── SIDEBAR ── */
+.sidebar {
+  width: var(--sidebar-w); background: var(--surface); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto; z-index: 80;
+  transition: transform .25s cubic-bezier(.4,0,.2,1), background .25s;
+  position: relative;
+}
+.sidebar::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: var(--tape); border-radius: 0 2px 2px 0;
+  box-shadow: 0 0 12px var(--glow1);
+}
+.logo-wrap { padding: 18px 16px 14px; border-bottom: 1px solid var(--border); }
+.logo-row { display: flex; align-items: center; gap: 10px; }
+.logo-mark {
+  width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+  background: var(--gradient-radiant);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 16px rgba(79,70,229,.4), 0 0 0 1px rgba(255,255,255,.08) inset;
+}
+.logo-mark svg { width: 18px; height: 18px; fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.logo-text .name { font-size: 14px; font-weight: 700; letter-spacing: -.3px; color: var(--tx1); }
+.logo-text .tag  { font-size: 10px; color: var(--tx3); text-transform: uppercase; letter-spacing: .7px; }
+nav.snav { padding: 10px 8px; flex: 1; }
+.nav-sect { font-size: 10px; font-weight: 600; color: var(--tx3); text-transform: uppercase;
+  letter-spacing: .8px; padding: 10px 10px 4px; }
+.nav-item {
+  display: flex; align-items: center; gap: 9px; padding: 9px 10px; border-radius: 8px;
+  color: var(--tx2); font-size: 13px; font-weight: 500; cursor: pointer;
+  border: none; background: none; width: 100%; text-align: left;
+  transition: all .18s cubic-bezier(.4,0,.2,1); margin-bottom: 1px; position: relative;
+}
+.nav-item i { width: 16px; text-align: center; font-size: 12px; flex-shrink: 0; }
+.nav-item:hover { background: var(--bg2); color: var(--tx1); transform: translateX(2px); }
+.nav-item.active { background: var(--accent-bg); color: var(--accent); box-shadow: 0 0 14px rgba(99,102,241,.18) inset; }
+.nav-item.active::before { content:''; position:absolute; left:-8px; top:50%; transform:translateY(-50%);
+  width:3px; height:20px; background:var(--accent); border-radius:99px; box-shadow: 0 0 8px var(--glow1); }
+.nav-badge { margin-left: auto; background: var(--gradient-radiant); color: #fff;
+  font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 99px; min-width: 20px; text-align: center;
+  box-shadow: 0 0 8px rgba(99,102,241,.4); }
+.sidebar-footer { padding: 12px 10px; border-top: 1px solid var(--border); }
+.storage-bar-wrap { font-size: 10px; color: var(--tx3); margin-bottom: 4px; display: flex; justify-content: space-between; }
+.storage-bar { height: 3px; background: var(--border); border-radius: 99px; overflow: hidden; }
+.storage-fill { height: 100%; background: var(--tape); border-radius: 99px; transition: width .4s; }
+
+/* ── MAIN ── */
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+
+/* ── TOPBAR ── */
+.topbar {
+  height: var(--topbar-h); background: var(--surface); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 20px; flex-shrink: 0; gap: 12px;
+  transition: background .25s;
+}
+.tb-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.mob-menu { display: none; }
+.nav-history-btns { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.nav-hist-btn {
+  width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--tx2); display: flex; align-items: center;
+  justify-content: center; cursor: pointer; transition: all .15s; font-size: 12px; flex-shrink: 0;
+}
+.nav-hist-btn:hover:not(:disabled) { border-color: var(--accent-brd); color: var(--accent); background: var(--accent-bg);
+  box-shadow: 0 0 10px rgba(99,102,241,.2); }
+.nav-hist-btn:disabled { opacity: .35; cursor: not-allowed; }
+.page-title { font-size: 16px; font-weight: 700; letter-spacing: -.3px; color: var(--tx1); white-space: nowrap; }
+.tb-right { display: flex; align-items: center; gap: 7px; flex-shrink: 0; }
+.search-box {
+  display: flex; align-items: center; gap: 8px; background: var(--bg);
+  border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px;
+  width: 200px; transition: border-color .15s;
+}
+.search-box:focus-within { border-color: var(--accent-brd); background: var(--surface); box-shadow: 0 0 0 3px var(--accent-bg); }
+.search-box i { color: var(--tx3); font-size: 12px; flex-shrink: 0; }
+.search-box input { background: none; border: none; outline: none; color: var(--tx1);
+  font-size: 13px; width: 100%; }
+.search-box input::placeholder { color: var(--tx3); }
+.icon-btn {
+  width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--tx2); display: flex; align-items: center;
+  justify-content: center; cursor: pointer; transition: all .15s; font-size: 13px; flex-shrink: 0;
+}
+.icon-btn:hover { border-color: var(--accent-brd); color: var(--accent); background: var(--accent-bg);
+  box-shadow: 0 0 12px rgba(99,102,241,.25); }
+.upload-btn {
+  display: flex; align-items: center; gap: 7px; padding: 8px 14px;
+  background: var(--gradient-radiant); color: #fff; border: none;
+  border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: all .2s; white-space: nowrap;
+  box-shadow: 0 2px 12px rgba(79,70,229,.35);
+}
+.upload-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 22px rgba(79,70,229,.5); }
+.upload-btn:active { transform: translateY(0); }
+.upload-btn i { font-size: 12px; }
+
+/* User chip in topbar (visible logout) */
+.tb-user-chip {
+  display: flex; align-items: center; gap: 9px; padding: 5px 6px 5px 10px; border-radius: 99px;
+  background: var(--bg2); border: 1px solid var(--border); flex-shrink: 0;
+}
+.tb-user-name { font-size: 12px; font-weight: 600; color: var(--tx1); max-width: 130px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tb-user-avatar {
+  width: 26px; height: 26px; border-radius: 50%; background: var(--gradient-radiant); color: #fff;
+  display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700;
+  flex-shrink: 0; overflow: hidden;
+}
+.tb-user-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.tb-logout-btn {
+  width: 26px; height: 26px; border-radius: 50%; border: none;
+  background: var(--surface); color: var(--tx2); display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all .15s; flex-shrink: 0; font-size: 11px;
+}
+.tb-logout-btn:hover { color: #fff; background: var(--red); box-shadow: 0 0 10px rgba(220,38,38,.4); }
+
+/* ── BODY SCROLL ── */
+.body-scroll { flex: 1; overflow-y: auto; padding: 20px; }
+
+/* ── PAGES ── */
+.page { display: none; }
+.page.active { display: block; animation: fadeIn .25s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.page-header { margin-bottom: 20px; display: flex; align-items: flex-start;
+  justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.page-header h1 { font-size: 22px; font-weight: 700; letter-spacing: -.5px; }
+.page-header p { color: var(--tx2); font-size: 13px; margin-top: 2px; }
+.page-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+/* ── BUTTONS ── */
+.btn {
+  display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px;
+  border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer;
+  border: 1px solid var(--border); background: var(--surface); color: var(--tx1);
+  transition: all .18s cubic-bezier(.4,0,.2,1); white-space: nowrap;
+}
+.btn:hover { border-color: var(--accent-brd); color: var(--accent); background: var(--accent-bg);
+  box-shadow: 0 0 12px rgba(99,102,241,.18); transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+.btn:disabled { opacity: .4; cursor: not-allowed; pointer-events: none; transform: none; }
+.btn i { font-size: 12px; }
+.btn-primary { background: var(--gradient-radiant); border-color: transparent; color: #fff;
+  box-shadow: 0 2px 10px rgba(79,70,229,.3); }
+.btn-primary:hover { color: #fff; box-shadow: 0 6px 20px rgba(79,70,229,.45); }
+.btn-success { background: var(--green-bg); border-color: var(--green); color: var(--green); }
+.btn-success:hover { background: var(--green); color: #fff; box-shadow: 0 0 14px rgba(5,150,105,.35); }
+.btn-danger  { background: var(--red-bg);   border-color: var(--red);   color: var(--red);   }
+.btn-danger:hover  { background: var(--red); color: #fff; box-shadow: 0 0 14px rgba(220,38,38,.35); }
+.btn-sm { padding: 6px 11px; font-size: 12px; }
+.btn-xs { padding: 4px 8px;  font-size: 11px; border-radius: 6px; }
+
+/* ── CARDS ── */
+.card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: 18px; box-shadow: var(--shadow);
+  transition: background .25s, border-color .25s, box-shadow .25s;
+  position: relative; overflow: hidden;
+}
+.card::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: var(--tape);
+}
+.card-title {
+  font-size: 13px; font-weight: 600; color: var(--tx2);
+  margin-bottom: 14px; display: flex; align-items: center; gap: 7px;
+  text-transform: uppercase; letter-spacing: .5px;
+}
+.card-title i { color: var(--tx3); font-size: 11px; }
+
+/* ── STAT CARDS ── */
+.stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 14px; margin-bottom: 20px; }
+.stat-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: 16px; box-shadow: var(--shadow); position: relative; overflow: hidden;
+  transition: all .25s cubic-bezier(.4,0,.2,1);
+}
+.stat-card:hover { transform: translateY(-3px); box-shadow: var(--shadow2), 0 0 24px rgba(99,102,241,.15); }
+.stat-card::after { content: ''; position: absolute; right: -12px; bottom: -12px;
+  width: 60px; height: 60px; border-radius: 50%; opacity: .1; filter: blur(2px); }
+.stat-card.blue::after   { background: var(--accent);  }
+.stat-card.green::after  { background: var(--green);   }
+.stat-card.amber::after  { background: var(--amber);   }
+.stat-card.purple::after { background: var(--purple);  }
+.stat-card.teal::after   { background: var(--teal);    }
+.stat-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.stat-label { font-size: 11px; font-weight: 600; color: var(--tx2);
+  text-transform: uppercase; letter-spacing: .5px; }
+.stat-icon { width: 32px; height: 32px; border-radius: 8px; display: flex;
+  align-items: center; justify-content: center; flex-shrink: 0; }
+.stat-icon i { font-size: 13px; }
+.si-blue   { background: var(--accent-bg); color: var(--accent); }
+.si-green  { background: var(--green-bg);  color: var(--green);  }
+.si-amber  { background: var(--amber-bg);  color: var(--amber);  }
+.si-purple { background: var(--purple-bg); color: var(--purple); }
+.si-teal   { background: var(--teal-bg);   color: var(--teal);   }
+.si-pink   { background: var(--pink-bg);   color: var(--pink);   }
+.stat-value { font-size: 26px; font-weight: 800; letter-spacing: -.8px; color: var(--tx1); line-height: 1; }
+.stat-sub   { font-size: 11px; color: var(--tx3); margin-top: 3px; }
+
+/* ── GRID LAYOUTS ── */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr;       gap: 16px; margin-bottom: 18px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr;   gap: 14px; margin-bottom: 18px; }
+.grid-2-1 { display: grid; grid-template-columns: 2fr 1fr;     gap: 16px; margin-bottom: 18px; }
+.chart-wrap { position: relative; height: 220px; }
+.chart-wrap-lg { position: relative; height: 270px; }
+.mb-4 { margin-bottom: 16px; }
+.mb-5 { margin-bottom: 20px; }
+
+/* ── UPLOAD ZONE ── */
+.upload-zone {
+  border: 2px dashed var(--border2); border-radius: var(--radius-lg);
+  padding: 44px 20px; text-align: center; cursor: pointer;
+  transition: all .25s; background: var(--surface2);
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+}
+.upload-zone:hover, .upload-zone.drag-over {
+  border-color: var(--accent); background: var(--accent-bg);
+  box-shadow: 0 0 30px rgba(99,102,241,.15) inset; }
+.upload-zone .uz-icon {
+  width: 60px; height: 60px; border-radius: var(--radius-lg);
+  background: var(--accent-bg); display: flex; align-items: center; justify-content: center;
+  transition: transform .25s; }
+.upload-zone:hover .uz-icon { transform: scale(1.06); }
+.upload-zone .uz-icon i { font-size: 24px; color: var(--accent); }
+.upload-zone h3 { font-size: 15px; font-weight: 600; color: var(--tx1); }
+.upload-zone p  { font-size: 12px; color: var(--tx2); }
+.upload-zone .uz-types { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 6px; }
+.type-badge { padding: 3px 9px; border-radius: 99px; font-size: 11px; font-weight: 600;
+  background: var(--border); color: var(--tx2); }
+#file-input { display: none; }
+
+/* ── PROCESSING STATE ── */
+.proc-panel { background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 20px; margin-top: 16px; }
+.proc-img-row { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+.proc-thumb { width: 120px; height: 120px; object-fit: cover; border-radius: var(--radius);
+  border: 1px solid var(--border); flex-shrink: 0; }
+.proc-thumb-pdf { width: 120px; height: 120px; border-radius: var(--radius);
+  border: 1px solid var(--border); background: var(--bg2); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 6px; }
+.proc-thumb-pdf i { font-size: 32px; color: var(--red); }
+.proc-thumb-pdf span { font-size: 11px; color: var(--tx3); }
+.proc-info { flex: 1; min-width: 200px; }
+.proc-status { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: 13px; font-weight: 500; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.status-dot.idle     { background: var(--tx3); }
+.status-dot.scanning { background: var(--amber); animation: pulse-dot 1s infinite; }
+.status-dot.done     { background: var(--green); box-shadow: 0 0 8px var(--green); }
+.status-dot.error    { background: var(--red);   }
+@keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.7)} }
+.prog-bar { height: 4px; background: var(--border); border-radius: 99px; overflow: hidden; margin-bottom: 14px; }
+.prog-fill { height: 100%; background: var(--gradient-radiant);
+  border-radius: 99px; width: 0; transition: width .5s; box-shadow: 0 0 8px rgba(99,102,241,.5); }
+
+/* ── FIELDS ── */
+.field-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field label { font-size: 10px; font-weight: 700; color: var(--tx3);
+  text-transform: uppercase; letter-spacing: .6px; }
+.field input, .field select {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 11px; color: var(--tx1); outline: none; transition: all .15s;
+  width: 100%; font-size: 13px;
+}
+.field input:focus, .field select:focus { border-color: var(--accent); background: var(--surface);
+  box-shadow: 0 0 0 3px var(--accent-bg); }
+.field select { cursor: pointer; }
+.conf-tag { display: inline-flex; align-items: center; padding: 2px 8px;
+  border-radius: 99px; font-size: 10px; font-weight: 700; margin-left: 6px; }
+.conf-high { background: var(--green-bg); color: var(--green); }
+.conf-med  { background: var(--amber-bg); color: var(--amber); }
+.conf-low  { background: var(--red-bg);   color: var(--red);   }
+.proc-actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; align-items: center; }
+.insight-panel { background: var(--accent-bg); border: 1px solid var(--accent-brd);
+  border-radius: var(--radius); padding: 12px; margin-top: 12px; }
+.insight-panel .ih { font-size: 11px; font-weight: 700; color: var(--accent); margin-bottom: 5px; display: flex; align-items: center; gap: 5px; }
+.insight-panel p { font-size: 12px; color: var(--tx2); line-height: 1.65; }
+
+/* ── DUPLICATE WARNING ── */
+.dup-warn { background: var(--amber-bg); border: 1px solid var(--amber);
+  border-radius: var(--radius); padding: 10px 13px; margin-top: 10px;
+  font-size: 12px; color: var(--amber); display: flex; align-items: center; gap: 7px; }
+
+/* ── RECEIPTS TABLE (desktop) ── */
+.table-controls { display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.tc-select {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 7px;
+  padding: 6px 10px; color: var(--tx1); font-size: 12px; outline: none; cursor: pointer;
+}
+.tc-select:focus { border-color: var(--accent-brd); }
+.tc-count { margin-left: auto; font-size: 12px; color: var(--tx3); }
+.table-scroll { overflow-x: auto; }
+.receipt-table { width: 100%; border-collapse: collapse; min-width: 700px; }
+.receipt-table th {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
+  color: var(--tx3); padding: 10px 14px; text-align: left; background: var(--surface2);
+  border-bottom: 1px solid var(--border); white-space: nowrap; cursor: pointer; user-select: none;
+}
+.receipt-table th:hover { color: var(--tx1); }
+.receipt-table th.sort-asc::after  { content: ' ↑'; }
+.receipt-table th.sort-desc::after { content: ' ↓'; }
+.receipt-table td { padding: 11px 14px; font-size: 13px; border-bottom: 1px solid var(--border);
+  vertical-align: middle; color: var(--tx1); }
+.receipt-table tr:hover td { background: var(--surface2); }
+.receipt-table tr:last-child td { border-bottom: none; }
+.thumb-cell { width: 38px; height: 38px; object-fit: cover; border-radius: 7px;
+  border: 1px solid var(--border); display: block; cursor: pointer; }
+.no-thumb { width: 38px; height: 38px; border-radius: 7px; background: var(--bg2);
+  display: flex; align-items: center; justify-content: center; }
+.no-thumb i { color: var(--tx3); font-size: 14px; }
+.vendor-cell { font-weight: 600; max-width: 160px; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.amt-cell { font-weight: 700; color: var(--green); white-space: nowrap; }
+.table-actions { display: flex; align-items: center; gap: 5px; }
+.ta-btn { width: 28px; height: 28px; border-radius: 7px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--tx2); display: flex; align-items: center;
+  justify-content: center; cursor: pointer; font-size: 11px; transition: all .15s; }
+.ta-btn.view:hover   { color: var(--accent); border-color: var(--accent); background: var(--accent-bg); }
+.ta-btn.edit:hover   { color: var(--green);  border-color: var(--green);  background: var(--green-bg);  }
+.ta-btn.delete:hover { color: var(--red);    border-color: var(--red);    background: var(--red-bg);    }
+
+/* ── RECEIPTS — MOBILE CARD VIEW ── */
+.receipts-cards { display: none; flex-direction: column; gap: 10px; padding: 12px; }
+.rcard { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: 13px; display: flex; gap: 12px; align-items: flex-start; position: relative; overflow: hidden; }
+.rcard::before { content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background: var(--tape); }
+.rcard-thumb { width: 46px; height: 46px; border-radius: 9px; object-fit: cover; border: 1px solid var(--border); flex-shrink: 0; cursor: pointer; }
+.rcard-noThumb { width: 46px; height: 46px; border-radius: 9px; background: var(--bg2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.rcard-noThumb i { color: var(--tx3); font-size: 16px; }
+.rcard-body { flex: 1; min-width: 0; }
+.rcard-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.rcard-vendor { font-weight: 700; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rcard-amt { font-weight: 800; color: var(--green); font-size: 15px; white-space: nowrap; }
+.rcard-meta { font-size: 11px; color: var(--tx3); margin-top: 3px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.rcard-acts { display: flex; gap: 6px; margin-top: 9px; }
+
+/* ── PAGINATION ── */
+.pagination { display: flex; align-items: center; gap: 5px; padding: 12px 16px;
+  border-top: 1px solid var(--border); flex-wrap: wrap; }
+.pg-btn { width: 29px; height: 29px; border-radius: 7px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--tx2); display: flex; align-items: center;
+  justify-content: center; cursor: pointer; font-size: 12px; transition: all .15s; }
+.pg-btn:hover, .pg-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
+.pg-info { margin-left: auto; font-size: 12px; color: var(--tx3); }
+
+/* ── CATEGORY BADGES ── */
+.badge { display: inline-flex; align-items: center; padding: 3px 9px;
+  border-radius: 99px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.b-fuel        { background: var(--orange-bg); color: var(--orange); }
+.b-meals       { background: var(--amber-bg);  color: var(--amber);  }
+.b-travel      { background: var(--sky-bg);    color: var(--sky);    }
+.b-office      { background: var(--teal-bg);   color: var(--teal);   }
+.b-inventory   { background: var(--purple-bg); color: var(--purple); }
+.b-advertising { background: var(--pink-bg);   color: var(--pink);   }
+.b-utilities   { background: var(--teal-bg);   color: var(--teal);   }
+.b-software    { background: var(--accent-bg); color: var(--accent); }
+.b-vehicle     { background: var(--orange-bg); color: var(--orange); }
+.b-insurance   { background: var(--green-bg);  color: var(--green);  }
+.b-rent        { background: var(--purple-bg); color: var(--purple); }
+.b-other       { background: var(--border);    color: var(--tx2);    }
+
+/* ── EMPTY STATE ── */
+.empty-state { text-align: center; padding: 50px 20px; color: var(--tx3); }
+.empty-state i { font-size: 36px; margin-bottom: 12px; display: block; opacity: .3; }
+.empty-state h3 { font-size: 15px; font-weight: 600; color: var(--tx2); margin-bottom: 5px; }
+.empty-state p  { font-size: 13px; }
+
+/* ── MODAL ── */
+.modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.65); z-index: 300;
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+  opacity: 0; visibility: hidden; transition: all .2s; backdrop-filter: blur(4px); }
+.modal-bg.open { opacity: 1; visibility: visible; }
+.modal { background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 24px; width: 100%;
+  max-height: 90vh; overflow-y: auto; transform: scale(.94); transition: transform .2s;
+  box-shadow: var(--shadow2); }
+.modal-bg.open .modal { transform: scale(1); }
+.modal-sm { max-width: 440px; }
+.modal-md { max-width: 640px; }
+.modal-lg { max-width: 900px; }
+.modal-hd { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+.modal-hd h3 { font-size: 16px; font-weight: 700; }
+.modal-close { width: 29px; height: 29px; border-radius: 8px; border: 1px solid var(--border);
+  background: none; cursor: pointer; color: var(--tx2); display: flex; align-items: center;
+  justify-content: center; font-size: 12px; transition: all .15s; }
+.modal-close:hover { color: var(--red); border-color: var(--red); }
+.modal-img { width: 100%; border-radius: var(--radius); margin-bottom: 16px;
+  max-height: 300px; object-fit: contain; display: block; }
+.detail-row { display: flex; justify-content: space-between; align-items: center;
+  padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.detail-row:last-of-type { border-bottom: none; }
+.dr-label { color: var(--tx2); font-weight: 500; }
+.dr-value { font-weight: 600; }
+
+/* ── REPORTS ── */
+.report-section { background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 20px; margin-bottom: 16px; }
+.report-section h3 { font-size: 14px; font-weight: 700; margin-bottom: 14px;
+  padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+.rep-row { display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.rep-row:last-child { border-bottom: none; }
+.rep-total { font-weight: 700; font-size: 15px; color: var(--accent); }
+
+/* ── SETTINGS ── */
+.settings-section { background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 20px; margin-bottom: 16px; }
+.settings-section h3 { font-size: 14px; font-weight: 700; margin-bottom: 16px;
+  padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+.setting-row { display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 0; border-bottom: 1px solid var(--border); gap: 16px; flex-wrap: wrap; }
+.setting-row:last-child { border-bottom: none; padding-bottom: 0; }
+.setting-label { font-size: 13px; font-weight: 500; }
+.setting-desc  { font-size: 11px; color: var(--tx3); margin-top: 2px; }
+.setting-control { flex-shrink: 0; }
+.api-input-wrap { display: flex; gap: 8px; align-items: center; flex: 1; min-width: 200px; flex-wrap: wrap; }
+.api-input-wrap input { flex: 1; min-width: 140px; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 11px; color: var(--tx1); outline: none; font-size: 13px; }
+.api-input-wrap input:focus { border-color: var(--accent-brd); }
+.api-status { display: flex; align-items: center; gap: 6px; font-size: 12px; margin-top: 8px; }
+.api-dot { width: 7px; height: 7px; border-radius: 50%; }
+.toggle-wrap { display: flex; align-items: center; gap: 8px; }
+.toggle { width: 38px; height: 21px; background: var(--border2); border-radius: 99px;
+  cursor: pointer; position: relative; transition: background .2s; border: none; flex-shrink: 0; }
+.toggle::after { content: ''; position: absolute; left: 3px; top: 3px; width: 15px; height: 15px;
+  border-radius: 50%; background: #fff; transition: transform .2s; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+.toggle.on { background: var(--accent); box-shadow: 0 0 10px rgba(99,102,241,.4); }
+.toggle.on::after { transform: translateX(17px); }
+.model-select { background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 11px; color: var(--tx1); outline: none; font-size: 13px; cursor: pointer; }
+
+/* ── ANALYTICS PAGE ── */
+.insights-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 18px; }
+.insight-card { background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 16px; border-left: 3px solid var(--accent); }
+.insight-card h4 { font-size: 11px; font-weight: 700; color: var(--tx3);
+  text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+.insight-card .ic-val { font-size: 18px; font-weight: 700; color: var(--tx1); margin-bottom: 2px; }
+.insight-card .ic-sub { font-size: 11px; color: var(--tx3); }
+
+/* ── TOAST ── */
+.toast-stack { position: fixed; bottom: 20px; right: 20px; z-index: 9999;
+  display: flex; flex-direction: column; gap: 7px; pointer-events: none; }
+.toast {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 11px 14px; font-size: 13px; display: flex; align-items: center; gap: 8px;
+  box-shadow: var(--shadow2); pointer-events: all; min-width: 200px; max-width: 320px;
+  animation: toast-in .22s ease; color: var(--tx1);
+}
+.toast.success { border-color: var(--green); }
+.toast.error   { border-color: var(--red);   }
+.toast.warning { border-color: var(--amber); }
+.toast-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.toast.success .toast-dot { background: var(--green); }
+.toast.error   .toast-dot { background: var(--red);   }
+.toast.warning .toast-dot { background: var(--amber); }
+.toast.info    .toast-dot { background: var(--accent); }
+@keyframes toast-in { from { transform: translateY(8px); opacity: 0; } }
+
+/* ── LOADING OVERLAY ── */
+.loading-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 500;
+  display: none; align-items: center; justify-content: center; flex-direction: column; gap: 12px; }
+.loading-overlay.show { display: flex; }
+.loading-overlay p { color: #fff; font-size: 13px; font-weight: 500; }
+.spinner { width: 38px; height: 38px; border: 3px solid rgba(255,255,255,.2);
+  border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes spin-inline { to { transform: rotate(360deg); } }
+.spin-inline { display: inline-block; animation: spin-inline .7s linear infinite; }
+
+/* ═══════════════════════════════════════════════════════════
+   AUTH SCREEN — Glassmorphism + Radiant Gradient
+═══════════════════════════════════════════════════════════ */
+#authScreen {
+  position: fixed; inset: 0; z-index: 1000;
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+  overflow-y: auto;
+  background: linear-gradient(135deg,#1e1b4b 0%,#4f46e5 35%,#7c3aed 65%,#db2777 100%);
+  background-size: 200% 200%;
+  animation: gradientShift 16s ease infinite;
+}
+@keyframes gradientShift {
+  0%,100% { background-position: 0% 50%; }
+  50%     { background-position: 100% 50%; }
+}
+#authScreen::before, #authScreen::after {
+  content: ''; position: absolute; border-radius: 50%; filter: blur(60px); opacity: .35; pointer-events: none;
+}
+#authScreen::before { width: 380px; height: 380px; background: #818cf8; top: -100px; left: -100px; animation: floatBlob 12s ease-in-out infinite; }
+#authScreen::after  { width: 320px; height: 320px; background: #f472b6; bottom: -90px; right: -90px; animation: floatBlob 14s ease-in-out infinite reverse; }
+@keyframes floatBlob { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(30px,-20px) scale(1.08); } }
+
+.auth-card {
+  background: rgba(255,255,255,.10);
+  border: 1px solid rgba(255,255,255,.22);
+  border-radius: 22px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.35), 0 0 0 1px rgba(255,255,255,.05) inset;
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  padding: 36px 32px; width: 100%; max-width: 420px;
+  position: relative; z-index: 1;
+  animation: cardIn .5s cubic-bezier(.2,.8,.2,1);
+}
+@keyframes cardIn { from { opacity: 0; transform: translateY(18px) scale(.97); } to { opacity: 1; transform: none; } }
+.auth-logo { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 8px; }
+.auth-logo .logo-mark {
+  width: 56px; height: 56px; border-radius: 16px;
+  box-shadow: 0 8px 28px rgba(79,70,229,.5), 0 0 0 1px rgba(255,255,255,.15) inset;
+  animation: logoGlow 3s ease-in-out infinite;
+}
+@keyframes logoGlow {
+  0%,100% { box-shadow: 0 8px 28px rgba(79,70,229,.5), 0 0 0 1px rgba(255,255,255,.15) inset; }
+  50%     { box-shadow: 0 8px 38px rgba(219,39,119,.55), 0 0 0 1px rgba(255,255,255,.15) inset; }
+}
+.auth-logo .logo-mark svg { width: 27px; height: 27px; }
+.auth-logo .name { font-size: 21px; font-weight: 800; letter-spacing: -.5px; color: #fff; text-shadow: 0 2px 12px rgba(0,0,0,.2); }
+.auth-logo .tag { font-size: 12.5px; color: rgba(255,255,255,.85); font-weight: 500; text-align: center; margin-top: -2px; }
+.auth-tabs { display: flex; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.15);
+  border-radius: 11px; padding: 4px; margin: 22px 0 18px; gap: 3px; }
+.auth-tab { flex: 1; padding: 9px 0; text-align: center; font-size: 13px; font-weight: 600;
+  color: rgba(255,255,255,.65); border: none; background: none; border-radius: 8px; cursor: pointer; transition: all .2s; }
+.auth-tab.active { background: #fff; color: #4f46e5; box-shadow: 0 4px 14px rgba(0,0,0,.18); }
+.auth-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.auth-field label { font-size: 10.5px; font-weight: 700; color: rgba(255,255,255,.75); text-transform: uppercase; letter-spacing: .6px; }
+.auth-input-wrap { position: relative; display: flex; align-items: center; }
+.auth-input-wrap i.fi { position: absolute; left: 13px; color: rgba(255,255,255,.55); font-size: 13px; pointer-events: none; }
+.auth-field input {
+  background: rgba(255,255,255,.10); border: 1px solid rgba(255,255,255,.20); border-radius: 11px;
+  padding: 11px 13px 11px 36px; color: #fff; outline: none; font-size: 14px; transition: all .2s; width: 100%;
+}
+.auth-field input::placeholder { color: rgba(255,255,255,.45); }
+.auth-field input:focus { border-color: rgba(255,255,255,.55); background: rgba(255,255,255,.16);
+  box-shadow: 0 0 0 3px rgba(255,255,255,.10); }
+.auth-error {
+  background: rgba(248,113,113,.18); border: 1px solid rgba(248,113,113,.5); color: #fff;
+  border-radius: 10px; padding: 10px 13px; font-size: 12px; margin-bottom: 14px;
+  display: none; align-items: center; gap: 7px;
+}
+.auth-error.show { display: flex; animation: shake .4s; }
+@keyframes shake { 20%,60%{transform:translateX(-4px)} 40%,80%{transform:translateX(4px)} }
+.auth-submit {
+  width: 100%; padding: 12px 0; border-radius: 11px; border: none;
+  background: linear-gradient(135deg,#6366f1,#a855f7); color: #fff; font-size: 14.5px; font-weight: 700;
+  cursor: pointer; transition: all .2s; display: flex; align-items: center; justify-content: center; gap: 8px;
+  box-shadow: 0 6px 20px rgba(99,102,241,.4);
+}
+.auth-submit:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(99,102,241,.55); }
+.auth-submit:active { transform: translateY(0); }
+.auth-submit:disabled { opacity: .55; cursor: not-allowed; pointer-events: none; transform: none; }
+.auth-divider { display: flex; align-items: center; gap: 10px; margin: 20px 0; color: rgba(255,255,255,.55);
+  font-size: 11px; text-transform: uppercase; letter-spacing: .6px; }
+.auth-divider::before, .auth-divider::after { content: ''; flex: 1; height: 1px; background: rgba(255,255,255,.2); }
+.auth-google {
+  width: 100%; padding: 11px 0; border-radius: 11px; border: 1px solid rgba(255,255,255,.25);
+  background: rgba(255,255,255,.95); color: #1f2937; font-size: 13.5px; font-weight: 600;
+  cursor: pointer; transition: all .2s; display: flex; align-items: center; justify-content: center; gap: 9px;
+}
+.auth-google:hover { background: #fff; transform: translateY(-2px); box-shadow: 0 8px 22px rgba(0,0,0,.25); }
+.auth-google:disabled { opacity: .55; cursor: not-allowed; pointer-events: none; transform: none; }
+.auth-google svg { width: 18px; height: 18px; flex-shrink: 0; }
+.auth-foot { text-align: center; font-size: 12.5px; color: rgba(255,255,255,.7); margin-top: 20px; }
+.auth-foot a { font-weight: 700; cursor: pointer; color: #fff; text-decoration: underline; text-decoration-color: rgba(255,255,255,.4); }
+.auth-trust {
+  display: flex; align-items: center; justify-content: center; gap: 7px; margin-top: 16px;
+  font-size: 11.5px; color: rgba(255,255,255,.6); text-align: center;
+}
+.auth-trust i { color: #34d399; font-size: 12px; }
+.auth-spinner {
+  width: 15px; height: 15px; border: 2px solid rgba(255,255,255,.35); border-top-color: #fff;
+  border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0;
+}
+
+#app-root { display: none; }
+#app-root.ready { display: flex; }
+
+/* ═══════════════════════════════════════════════════════════
+   RESPONSIVE — Mobile / Tablet / Desktop
+═══════════════════════════════════════════════════════════ */
+@media (max-width: 860px) {
+  .sidebar { position: fixed; top: 0; left: 0; height: 100vh; transform: translateX(-100%); }
+  .sidebar.mob-open { transform: none; box-shadow: var(--shadow2); }
+  .mob-menu { display: flex; }
+  .grid-2, .grid-2-1 { grid-template-columns: 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr; }
+  .tb-user-name { display: none; }
+}
+@media (max-width: 720px) {
+  /* switch receipts table to card view on small/medium screens */
+  .table-scroll { display: none; }
+  .receipts-cards { display: flex; }
+  .pagination { border-top: 1px solid var(--border); }
+}
+@media (max-width: 560px) {
+  .stats-row { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr; }
+  .body-scroll { padding: 12px; }
+  .search-box { display: none; }
+  .upload-btn span { display: none; }
+  .upload-btn { padding: 9px 11px; }
+  .page-header h1 { font-size: 19px; }
+  .nav-hist-btn { width: 28px; height: 28px; }
+  .field-grid { grid-template-columns: 1fr 1fr; }
+  .auth-card { padding: 28px 22px; }
+  .topbar { padding: 0 12px; gap: 8px; }
+}
+@media (max-width: 400px) {
+  .field-grid { grid-template-columns: 1fr; }
+  .proc-img-row { flex-direction: column; align-items: center; }
+}
+@media print {
+  .sidebar, .topbar, .toast-stack, .proc-actions, .table-actions,
+  .pagination, .table-controls, .page-actions { display: none !important; }
+  .body-scroll { padding: 0 !important; }
+  .page.active { display: block !important; }
+  .card, .report-section { box-shadow: none !important; border: 1px solid #ddd !important; }
+}
+</style>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <p id="loadingMsg">Processing receipt…</p>
+</div>
+
+<!-- ═══════════════ AUTH SCREEN ═══════════════ -->
+<div id="authScreen">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="logo-mark">
+        <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
+      </div>
+      <div class="name">ReceiptVault AI</div>
+      <div class="tag">Smart AI Receipt &amp; Expense Manager</div>
+    </div>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tabLogin" onclick="switchAuthTab('login')">Log In</button>
+      <button class="auth-tab" id="tabSignup" onclick="switchAuthTab('signup')">Sign Up</button>
+      <button class="auth-tab" id="tabAdmin" onclick="switchAuthTab('admin')" title="Admin test access"><i class="fas fa-user-shield"></i></button>
+    </div>
+
+    <div class="auth-error" id="authError"><i class="fas fa-exclamation-circle"></i><span id="authErrorText"></span></div>
+
+    <!-- LOGIN FORM -->
+    <div id="loginForm">
+      <div class="auth-field">
+        <label>Email</label>
+        <div class="auth-input-wrap"><i class="fas fa-envelope fi"></i><input type="email" id="loginEmail" placeholder="you@example.com" autocomplete="email"></div>
+      </div>
+      <div class="auth-field">
+        <label>Password</label>
+        <div class="auth-input-wrap"><i class="fas fa-lock fi"></i><input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password"></div>
+      </div>
+      <button class="auth-submit" id="loginBtn" onclick="doLogin()"><i class="fas fa-sign-in-alt"></i><span>Log In</span></button>
+    </div>
+
+    <!-- SIGNUP FORM -->
+    <div id="signupForm" style="display:none">
+      <div class="auth-field">
+        <label>Email</label>
+        <div class="auth-input-wrap"><i class="fas fa-envelope fi"></i><input type="email" id="signupEmail" placeholder="you@example.com" autocomplete="email"></div>
+      </div>
+      <div class="auth-field">
+        <label>Password</label>
+        <div class="auth-input-wrap"><i class="fas fa-lock fi"></i><input type="password" id="signupPassword" placeholder="At least 6 characters" autocomplete="new-password"></div>
+      </div>
+      <button class="auth-submit" id="signupBtn" onclick="doSignup()"><i class="fas fa-user-plus"></i><span>Create Account</span></button>
+    </div>
+
+    <!-- ADMIN LOGIN FORM -->
+    <div id="adminForm" style="display:none">
+      <div class="auth-field">
+        <label>Admin Username</label>
+        <div class="auth-input-wrap"><i class="fas fa-user-shield fi"></i><input type="text" id="adminUsername" placeholder="admin" autocomplete="username"></div>
+      </div>
+      <div class="auth-field">
+        <label>Admin Password</label>
+        <div class="auth-input-wrap"><i class="fas fa-lock fi"></i><input type="password" id="adminPassword" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doAdminLogin()"></div>
+      </div>
+      <button class="auth-submit" id="adminBtn" onclick="doAdminLogin()"><i class="fas fa-user-shield"></i><span>Enter Admin / Test Mode</span></button>
+      <div class="auth-trust" style="margin-top:14px"><i class="fas fa-info-circle"></i><span>Default is admin / admin123 — change it from the Admin Panel after logging in.</span></div>
+    </div>
+
+    <div id="regularAuthExtras">
+      <div class="auth-divider">or continue with</div>
+      <button class="auth-google" id="googleBtn" onclick="doGoogleSignIn()">
+        <svg viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 6 29.6 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.7-.4-3.9z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 16 18.9 13 24 13c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 6 29.6 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.5 0 10.4-1.8 14.1-5.1l-6.5-5.5C29.6 35.4 27 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.6 5.1C9.6 39.6 16.3 44 24 44z"/><path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.3-2.2 4.3-4.1 5.7l6.5 5.5C41.5 35.8 44 30.4 44 24c0-1.3-.1-2.7-.4-3.9z"/></svg>
+        <span id="googleBtnText">Sign in with Google</span>
+      </button>
+      <div class="auth-foot" id="authFoot">Don't have an account? <a onclick="switchAuthTab('signup')">Sign up</a></div>
+    </div>
+    <div class="auth-trust"><i class="fas fa-shield-alt"></i><span>Your receipts stay private and user-specific.</span></div>
+  </div>
+</div>
+
+<div class="app" id="app-root">
+<!-- ═══════════════ SIDEBAR ═══════════════ -->
+<aside class="sidebar" id="sidebar">
+  <div class="logo-wrap">
+    <div class="logo-row">
+      <div class="logo-mark">
+        <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
+      </div>
+      <div class="logo-text">
+        <div class="name">ReceiptVault AI</div>
+        <div class="tag">Expense Intelligence</div>
+      </div>
+    </div>
+  </div>
+  <nav class="snav">
+    <div class="nav-sect">Main</div>
+    <button class="nav-item active" data-page="dashboard"><i class="fas fa-th-large"></i>Dashboard</button>
+    <button class="nav-item" data-page="upload"><i class="fas fa-cloud-upload-alt"></i>Upload Receipt</button>
+    <button class="nav-item" data-page="receipts"><i class="fas fa-receipt"></i>Receipts<span class="nav-badge" id="recBadge">0</span></button>
+    <div class="nav-sect">Insights</div>
+    <button class="nav-item" data-page="analytics"><i class="fas fa-chart-pie"></i>Analytics</button>
+    <button class="nav-item" data-page="reports"><i class="fas fa-file-alt"></i>Reports</button>
+    <div class="nav-sect">System</div>
+    <button class="nav-item" data-page="settings"><i class="fas fa-cog"></i>Settings</button>
+    <div class="nav-sect" id="adminNavSect" style="display:none">Admin</div>
+    <button class="nav-item" data-page="admin" id="adminNavBtn" style="display:none"><i class="fas fa-user-shield"></i>Admin Panel</button>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="storage-bar-wrap">
+      <span>Storage (IndexedDB)</span>
+      <span id="storageAmt">0 receipts</span>
+    </div>
+    <div class="storage-bar"><div class="storage-fill" id="storageFill" style="width:0%"></div></div>
+  </div>
+</aside>
+
+<!-- ═══════════════ MAIN ═══════════════ -->
+<div class="main">
+  <header class="topbar">
+    <div class="tb-left">
+      <button class="icon-btn mob-menu" id="mobMenuBtn"><i class="fas fa-bars"></i></button>
+      <div class="nav-history-btns">
+        <button class="nav-hist-btn" id="navBackBtn" title="Back" onclick="goBack()"><i class="fas fa-arrow-left"></i></button>
+        <button class="nav-hist-btn" id="navHomeBtn" title="Home / Dashboard" onclick="goHome()"><i class="fas fa-home"></i></button>
+      </div>
+      <span class="page-title" id="pageTitle">Dashboard</span>
+    </div>
+    <div class="tb-right">
+      <div class="search-box">
+        <i class="fas fa-search"></i>
+        <input type="text" placeholder="Search receipts…" id="globalSearch" oninput="handleSearch()">
+      </div>
+      <button class="icon-btn" id="themeToggle" title="Toggle theme"><i class="fas fa-moon" id="themeIcon"></i></button>
+      <button class="upload-btn" onclick="navigateTo('upload')"><i class="fas fa-plus"></i><span>New Receipt</span></button>
+      <div class="tb-user-chip">
+        <div class="tb-user-avatar" id="userAvatar">U</div>
+        <span class="tb-user-name" id="userName">User</span>
+        <button class="tb-logout-btn" id="logoutBtn" title="Log out" onclick="doLogout()"><i class="fas fa-sign-out-alt"></i></button>
+      </div>
+    </div>
+  </header>
+
+  <div class="body-scroll" id="bodyScroll">
+
+    <!-- ════ DASHBOARD ════ -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-header">
+        <div><h1>Dashboard</h1><p>Your expense overview at a glance</p></div>
+        <div class="page-actions">
+          <button class="btn btn-sm" onclick="navigateTo('reports')"><i class="fas fa-file-export"></i>Reports</button>
+        </div>
+      </div>
+      <div class="stats-row" id="dash-stats"></div>
+      <div class="grid-2 mb-4">
+        <div class="card"><div class="card-title"><i class="fas fa-chart-bar"></i>Monthly Expenses</div><div class="chart-wrap"><canvas id="chartMonthly"></canvas></div></div>
+        <div class="card"><div class="card-title"><i class="fas fa-chart-pie"></i>By Category</div><div class="chart-wrap"><canvas id="chartCategory"></canvas></div></div>
+      </div>
+      <div class="card mb-4"><div class="card-title"><i class="fas fa-store"></i>Top Vendors</div><div class="chart-wrap"><canvas id="chartVendors"></canvas></div></div>
+      <div class="card"><div class="card-title"><i class="fas fa-clock"></i>Recent Receipts</div><div id="recentList"></div></div>
+    </div>
+
+    <!-- ════ UPLOAD ════ -->
+    <div class="page" id="page-upload">
+      <div class="page-header"><div><h1>Upload Receipt</h1><p>AI extracts all details automatically via Gemini Vision</p></div></div>
+
+      <div class="upload-zone" id="uploadZone" onclick="document.getElementById('file-input').click()">
+        <div class="uz-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+        <h3>Drop receipt here or click to browse</h3>
+        <p>Gemini Vision will extract vendor, date, amounts and categorise automatically</p>
+        <div class="uz-types">
+          <span class="type-badge">JPG</span><span class="type-badge">PNG</span>
+          <span class="type-badge">JPEG</span><span class="type-badge">PDF</span>
+        </div>
+      </div>
+      <input type="file" id="file-input" accept="image/jpeg,image/png,image/jpg,application/pdf" multiple>
+
+      <div class="proc-panel" id="procPanel" style="display:none">
+        <div class="proc-img-row">
+          <div id="procThumbWrap"></div>
+          <div class="proc-info">
+            <div class="proc-status"><div class="status-dot idle" id="statusDot"></div><span id="statusText">Ready</span></div>
+            <div class="prog-bar"><div class="prog-fill" id="progFill"></div></div>
+            <div id="dupWarn" style="display:none" class="dup-warn"><i class="fas fa-exclamation-triangle"></i><span id="dupMsg"></span></div>
+            <div class="field-grid" id="fieldGrid">
+              <div class="field"><label>Vendor / Business</label><input type="text" id="f-vendor" oninput="enableSave()"></div>
+              <div class="field"><label>Date</label><input type="date" id="f-date" oninput="enableSave()"></div>
+              <div class="field"><label>Subtotal ($)</label><input type="number" id="f-subtotal" step="0.01" oninput="enableSave()"></div>
+              <div class="field"><label>Tax ($)</label><input type="number" id="f-tax" step="0.01" oninput="enableSave()"></div>
+              <div class="field"><label>Total ($) *</label><input type="number" id="f-total" step="0.01" oninput="enableSave()"></div>
+              <div class="field"><label>Category <span id="catConf"></span></label>
+                <select id="f-category">
+                  <option value="Fuel">Fuel</option><option value="Meals">Meals</option>
+                  <option value="Travel">Travel</option><option value="Office Supplies">Office Supplies</option>
+                  <option value="Inventory">Inventory</option><option value="Advertising">Advertising</option>
+                  <option value="Utilities">Utilities</option><option value="Software">Software</option>
+                  <option value="Vehicle">Vehicle</option><option value="Insurance">Insurance</option>
+                  <option value="Rent">Rent</option><option value="Other">Other</option>
+                </select>
+              </div>
+              <div class="field"><label>Payment Method</label>
+                <select id="f-payment">
+                  <option>Credit Card</option><option>Debit Card</option><option>Cash</option>
+                  <option>Bank Transfer</option><option>Check</option><option>Other</option>
+                </select>
+              </div>
+              <div class="field"><label>Receipt #</label><input type="text" id="f-receiptnum" placeholder="Optional"></div>
+              <div class="field"><label>Notes</label><input type="text" id="f-notes" placeholder="Optional notes"></div>
+            </div>
+            <div class="proc-actions">
+              <button class="btn btn-primary" id="saveBtn" disabled onclick="saveCurrentReceipt()"><i class="fas fa-save"></i>Save Receipt</button>
+              <button class="btn" onclick="clearUpload()"><i class="fas fa-times"></i>Clear</button>
+              <button class="btn btn-sm" onclick="runGemini()"><i class="fas fa-magic"></i>Re-scan</button>
+            </div>
+            <div class="insight-panel" id="insightPanel" style="display:none">
+              <div class="ih"><i class="fas fa-lightbulb"></i>AI Insight</div>
+              <p id="insightText"></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════ RECEIPTS ════ -->
+    <div class="page" id="page-receipts">
+      <div class="page-header">
+        <div><h1>All Receipts</h1><p>Browse, filter and manage your expense records</p></div>
+        <div class="page-actions">
+          <button class="btn btn-sm" onclick="exportCSV()"><i class="fas fa-file-csv"></i>CSV</button>
+          <button class="btn btn-sm" onclick="exportJSON()"><i class="fas fa-file-code"></i>JSON</button>
+          <button class="btn btn-sm" onclick="exportExcelCSV()"><i class="fas fa-file-excel"></i>Excel</button>
+        </div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div class="table-controls">
+          <select class="tc-select" id="filterCat" onchange="renderTable()"><option value="">All Categories</option></select>
+          <select class="tc-select" id="filterMonth" onchange="renderTable()"><option value="">All Months</option></select>
+          <select class="tc-select" id="filterYear" onchange="renderTable()"><option value="">All Years</option></select>
+          <select class="tc-select" id="filterVendor" onchange="renderTable()"><option value="">All Vendors</option></select>
+          <span class="tc-count" id="tableCount"></span>
+        </div>
+        <!-- Desktop table -->
+        <div class="table-scroll">
+          <table class="receipt-table">
+            <thead><tr>
+              <th style="width:52px"></th>
+              <th data-sort="vendor">Vendor</th>
+              <th data-sort="date">Date</th>
+              <th data-sort="category">Category</th>
+              <th data-sort="total">Amount</th>
+              <th data-sort="tax">Tax</th>
+              <th data-sort="paymentMethod">Payment</th>
+              <th style="text-align:right">Actions</th>
+            </tr></thead>
+            <tbody id="receiptsTbody"></tbody>
+          </table>
+        </div>
+        <!-- Mobile card view -->
+        <div class="receipts-cards" id="receiptsCards"></div>
+        <div class="pagination" id="paginationWrap"></div>
+      </div>
+    </div>
+
+    <!-- ════ ANALYTICS ════ -->
+    <div class="page" id="page-analytics">
+      <div class="page-header"><div><h1>Analytics</h1><p>Deep dive into your spending patterns</p></div></div>
+      <div class="insights-grid" id="insightsGrid"></div>
+      <div class="grid-2 mb-4">
+        <div class="card"><div class="card-title"><i class="fas fa-chart-pie"></i>Category Breakdown</div><div class="chart-wrap-lg"><canvas id="chartCatB"></canvas></div></div>
+        <div class="card"><div class="card-title"><i class="fas fa-chart-line"></i>Spend Trend (12 mo)</div><div class="chart-wrap-lg"><canvas id="chartTrend"></canvas></div></div>
+      </div>
+      <div class="card"><div class="card-title"><i class="fas fa-chart-bar"></i>Top Vendors by Spend</div><div class="chart-wrap"><canvas id="chartVendorB"></canvas></div></div>
+    </div>
+
+    <!-- ════ REPORTS ════ -->
+    <div class="page" id="page-reports">
+      <div class="page-header">
+        <div><h1>Reports</h1><p>Generate and export expense summaries</p></div>
+        <div class="page-actions">
+          <select class="tc-select" id="repYear" onchange="renderReports()"><option value="">All Years</option></select>
+          <select class="tc-select" id="repMonth" onchange="renderReports()">
+            <option value="">All Months</option>
+            <option value="01">January</option><option value="02">February</option>
+            <option value="03">March</option><option value="04">April</option>
+            <option value="05">May</option><option value="06">June</option>
+            <option value="07">July</option><option value="08">August</option>
+            <option value="09">September</option><option value="10">October</option>
+            <option value="11">November</option><option value="12">December</option>
+          </select>
+          <button class="btn btn-sm" onclick="exportCSV()"><i class="fas fa-file-csv"></i>CSV</button>
+          <button class="btn btn-primary btn-sm" onclick="window.print()"><i class="fas fa-print"></i>Print PDF</button>
+        </div>
+      </div>
+      <div id="reportContent"></div>
+    </div>
+
+    <!-- ════ SETTINGS ════ -->
+    <div class="page" id="page-settings">
+      <div class="page-header"><div><h1>Settings</h1><p>Configure ReceiptVault AI</p></div></div>
+
+      <div class="settings-section">
+        <h3><i class="fas fa-key" style="color:var(--amber)"></i>Gemini API Key</h3>
+        <div class="setting-row">
+          <div>
+            <div class="setting-label">Google Gemini Vision API Key</div>
+            <div class="setting-desc">Required for automatic receipt scanning. Get yours at aistudio.google.com</div>
+            <div class="api-input-wrap" style="margin-top:10px">
+              <input type="password" id="apiKeyInput" placeholder="AIza…" autocomplete="off">
+              <button class="icon-btn" id="apiKeyToggle" onclick="toggleApiVis()" title="Show/hide key"><i class="fas fa-eye" id="apiKeyEye"></i></button>
+              <button class="btn btn-primary btn-sm" onclick="saveApiKey()"><i class="fas fa-save"></i>Save</button>
+              <button class="btn btn-sm" onclick="testApiKey()"><i class="fas fa-plug"></i>Test</button>
+            </div>
+            <div class="api-status" id="apiStatus"></div>
+          </div>
+        </div>
+        <div class="setting-row">
+          <div>
+            <div class="setting-label">Gemini Model</div>
+            <div class="setting-desc">Model used for receipt analysis</div>
+          </div>
+          <select class="model-select" id="modelSelect" onchange="saveModel()">
+            <option value="gemini-2.5-flash">gemini-2.5-flash (fast, recommended)</option>
+            <option value="gemini-2.5-pro">gemini-2.5-pro (most accurate)</option>
+            <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite (lightweight)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3><i class="fas fa-palette" style="color:var(--accent)"></i>Appearance</h3>
+        <div class="setting-row">
+          <div>
+            <div class="setting-label">Dark Mode</div>
+            <div class="setting-desc">Switch between light and dark interface</div>
+          </div>
+          <div class="toggle-wrap">
+            <button class="toggle" id="darkToggle" onclick="toggleTheme()"></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3><i class="fas fa-database" style="color:var(--teal)"></i>Data Management</h3>
+        <div class="setting-row">
+          <div>
+            <div class="setting-label">Export All Data</div>
+            <div class="setting-desc">Download complete backup as JSON</div>
+          </div>
+          <button class="btn btn-sm" onclick="exportJSON()"><i class="fas fa-download"></i>Export JSON</button>
+        </div>
+        <div class="setting-row">
+          <div>
+            <div class="setting-label">Import Data</div>
+            <div class="setting-desc">Restore from JSON backup</div>
+          </div>
+          <button class="btn btn-sm" onclick="document.getElementById('importInput').click()"><i class="fas fa-upload"></i>Import JSON</button>
+        </div>
+        <div class="setting-row">
+          <div>
+            <div class="setting-label">Clear All Receipts</div>
+            <div class="setting-desc">Permanently delete all stored data</div>
+          </div>
+          <button class="btn btn-danger btn-sm" onclick="clearAllData()"><i class="fas fa-trash"></i>Clear All</button>
+        </div>
+        <input type="file" id="importInput" accept=".json" style="display:none" onchange="importJSON(event)">
+      </div>
+
+      <div class="settings-section">
+        <h3><i class="fas fa-info-circle" style="color:var(--green)"></i>About</h3>
+        <div class="setting-row">
+          <div>
+            <div class="setting-label">ReceiptVault AI</div>
+            <div class="setting-desc">Powered by Google Gemini Vision · Chart.js · Firebase Auth · IndexedDB storage</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════ ADMIN PANEL ════ -->
+    <div class="page" id="page-admin">
+      <div class="page-header"><div><h1>Admin Panel</h1><p>Login screen control &amp; test access</p></div></div>
+
+      <div class="settings-section">
+        <h3><i class="fas fa-door-open" style="color:var(--red)"></i>Login Screen</h3>
+        <div class="setting-row">
+          <div>
+            <div class="setting-label">Require Login Screen</div>
+            <div class="setting-desc">When OFF, this app opens straight into test/guest mode on this device — no email/password or Google sign-in required. Turn it back ON to restore the normal login.</div>
+          </div>
+          <div class="toggle-wrap"><button class="toggle" id="loginDisabledToggle" onclick="toggleLoginScreen()"></button></div>
+        </div>
+        <div class="setting-row">
+          <div>
+            <div class="setting-label">Current Status</div>
+            <div class="setting-desc" id="loginStatusText">Login screen is active</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3><i class="fas fa-user-shield" style="color:var(--purple)"></i>Admin Credentials</h3>
+        <div class="setting-row">
+          <div style="width:100%">
+            <div class="setting-label">Change Admin Username &amp; Password</div>
+            <div class="setting-desc">Used for the Admin tab on the login screen. Stored only in this browser's localStorage.</div>
+            <div class="api-input-wrap" style="margin-top:10px">
+              <input type="text" id="newAdminUsername" placeholder="New username">
+              <input type="password" id="newAdminPassword" placeholder="New password" autocomplete="new-password">
+              <button class="btn btn-primary btn-sm" onclick="updateAdminCreds()"><i class="fas fa-save"></i>Update</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3><i class="fas fa-flask" style="color:var(--teal)"></i>Test Session</h3>
+        <div class="setting-row">
+          <div>
+            <div class="setting-label">You're in Admin Test Mode</div>
+            <div class="setting-desc">Data you create here is stored locally under a test profile and won't mix with real user accounts.</div>
+          </div>
+          <button class="btn btn-danger btn-sm" onclick="doLogout()"><i class="fas fa-sign-out-alt"></i>Exit Test Mode</button>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3><i class="fas fa-triangle-exclamation" style="color:var(--amber)"></i>Note</h3>
+        <div class="setting-row">
+          <div class="setting-desc">This admin login is a client-side convenience for local testing and demos — the username/password are checked in the browser, not on a server. Don't rely on it to protect real user data on a public deployment.</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /body-scroll -->
+</div><!-- /main -->
+</div><!-- /app -->
+
+<!-- ═══════════════ MODALS ═══════════════ -->
+<div class="modal-bg" id="viewModal" onclick="if(event.target===this)closeModal('viewModal')">
+  <div class="modal modal-lg"><div class="modal-hd"><h3>Receipt Details</h3><button class="modal-close" onclick="closeModal('viewModal')"><i class="fas fa-times"></i></button></div><div id="viewModalBody"></div></div>
+</div>
+<div class="modal-bg" id="editModal" onclick="if(event.target===this)closeModal('editModal')">
+  <div class="modal modal-sm"><div class="modal-hd"><h3>Edit Receipt</h3><button class="modal-close" onclick="closeModal('editModal')"><i class="fas fa-times"></i></button></div><div id="editModalBody"></div></div>
+</div>
+<div class="modal-bg" id="confirmModal">
+  <div class="modal modal-sm">
+    <div class="modal-hd"><h3 id="confirmTitle">Confirm</h3><button class="modal-close" onclick="closeModal('confirmModal')"><i class="fas fa-times"></i></button></div>
+    <p id="confirmMsg" style="font-size:13px;color:var(--tx2);margin-bottom:18px"></p>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-sm" onclick="closeModal('confirmModal')">Cancel</button>
+      <button class="btn btn-danger btn-sm" id="confirmOk">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-stack" id="toastStack"></div>
+<script>
+'use strict';
+// ═══════════════════════════════════════════════════════════
+// FIREBASE CONFIG
+// ⚠️  PASTE YOUR OWN FIREBASE CONFIG BELOW — get it from:
+//     Firebase Console → Project Settings → General → Your apps → SDK setup
+//     This is required for login/signup/Google sign-in to work.
+// ═══════════════════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey: "AIzaSyDpiUJ3AuoKMHNCTXrTrU4q092kVlrW3dE",
+  authDomain: "receiptvault-ai-b8eb9.firebaseapp.com",
+  projectId: "receiptvault-ai-b8eb9",
+  storageBucket: "receiptvault-ai-b8eb9.firebasestorage.app",
+  messagingSenderId: "1075841807835",
+  appId: "1:1075841807835:web:7badd8aba6ab993707e3fe"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+let currentUser = null;
+
+// ═══════════════════════════════════════════════════════════
+// AUTH UI — tab switching, errors, loading states
+// ═══════════════════════════════════════════════════════════
+function switchAuthTab(tab){
+  const isLogin = tab==='login', isSignup = tab==='signup', isAdmin = tab==='admin';
+  el('tabLogin').classList.toggle('active', isLogin);
+  el('tabSignup').classList.toggle('active', isSignup);
+  el('tabAdmin').classList.toggle('active', isAdmin);
+  el('loginForm').style.display = isLogin?'block':'none';
+  el('signupForm').style.display = isSignup?'block':'none';
+  el('adminForm').style.display = isAdmin?'block':'none';
+  el('regularAuthExtras').style.display = isAdmin?'none':'block';
+  if(!isAdmin){
+    el('authFoot').innerHTML = isLogin
+      ? `Don't have an account? <a onclick="switchAuthTab('signup')">Sign up</a>`
+      : `Already have an account? <a onclick="switchAuthTab('login')">Log in</a>`;
+  }
+  hideAuthError();
+}
+function showAuthError(msg){ el('authErrorText').textContent=msg; el('authError').classList.add('show'); }
+function hideAuthError(){ el('authError').classList.remove('show'); }
+
+function setAuthLoading(which, loading){
+  const map = {
+    login:  { btn:'loginBtn',  icon:'fas fa-sign-in-alt', label:'Log In' },
+    signup: { btn:'signupBtn', icon:'fas fa-user-plus',   label:'Create Account' },
+    google: { btn:'googleBtn', icon:null,                  label:'Sign in with Google' }
+  };
+  const cfg = map[which];
+  const btn = el(cfg.btn);
+  btn.disabled = loading;
+  ['loginBtn','signupBtn','googleBtn'].forEach(id=>{ if(id!==cfg.btn) el(id).disabled = loading; });
+  if(which==='google'){
+    el('googleBtnText').innerHTML = loading ? `<span class="auth-spinner" style="border-top-color:#4f46e5;border-color:rgba(79,70,229,.25)"></span> Connecting…` : 'Sign in with Google';
+  } else {
+    btn.innerHTML = loading
+      ? `<span class="auth-spinner"></span><span>Please wait…</span>`
+      : `<i class="${cfg.icon}"></i><span>${cfg.label}</span>`;
+  }
+}
+
+function friendlyAuthError(code, fallback){
+  const map = {
+    'auth/wrong-password':        'Incorrect password. Please try again.',
+    'auth/user-not-found':        'No account found with that email.',
+    'auth/invalid-credential':    'Incorrect email or password.',
+    'auth/invalid-login-credentials': 'Incorrect email or password.',
+    'auth/email-already-in-use':  'That email is already registered. Try logging in instead.',
+    'auth/weak-password':         'Password should be at least 6 characters.',
+    'auth/invalid-email':         'Please enter a valid email address.',
+    'auth/too-many-requests':     'Too many attempts. Please wait a moment and try again.',
+    'auth/network-request-failed':'Network error. Check your internet connection.',
+    'auth/popup-closed-by-user':  'Google sign-in was cancelled.',
+    'auth/cancelled-popup-request':'Google sign-in was cancelled.',
+    'auth/operation-not-allowed': 'This sign-in method is not enabled for this project.',
+    'auth/configuration-not-found':'Firebase is not configured yet. Paste your firebaseConfig in the code.',
+    'auth/unauthorized-domain':   'This domain is not authorized. Add it in Firebase Console → Authentication → Settings → Authorized domains.',
+  };
+  return map[code] || fallback || 'Something went wrong. Please try again.';
+}
+
+async function doLogin(){
+  hideAuthError();
+  const email = el('loginEmail').value.trim();
+  const pass  = el('loginPassword').value;
+  if(!email||!pass){ showAuthError('Enter both email and password.'); return; }
+  setAuthLoading('login', true);
+  try {
+    await auth.signInWithEmailAndPassword(email, pass);
+  } catch(err){
+    showAuthError(friendlyAuthError(err.code, err.message));
+  } finally {
+    setAuthLoading('login', false);
+  }
+}
+
+async function doSignup(){
+  hideAuthError();
+  const email = el('signupEmail').value.trim();
+  const pass  = el('signupPassword').value;
+  if(!email||!pass){ showAuthError('Enter both email and password.'); return; }
+  if(pass.length<6){ showAuthError('Password should be at least 6 characters.'); return; }
+  setAuthLoading('signup', true);
+  try {
+    await auth.createUserWithEmailAndPassword(email, pass);
+  } catch(err){
+    showAuthError(friendlyAuthError(err.code, err.message));
+  } finally {
+    setAuthLoading('signup', false);
+  }
+}
+
+async function doGoogleSignIn(){
+  hideAuthError();
+  setAuthLoading('google', true);
+  try {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    await auth.signInWithPopup(provider);
+  } catch(err){
+    showAuthError(friendlyAuthError(err.code, err.message));
+  } finally {
+    setAuthLoading('google', false);
+  }
+}
+
+function doLogout(){
+  confirm2('Log Out','Are you sure you want to log out?',async ()=>{
+    if(auth.currentUser){
+      try { await auth.signOut(); } catch(e){ toast('Logout failed: '+e.message,'error'); }
+    } else {
+      // Admin / test-mode or login-disabled guest session — nothing to sign out of in Firebase
+      isAdminSession = false;
+      sessionStorage.removeItem(ADMIN_SESSION_KEY);
+      currentUser = null;
+      el('app-root').classList.remove('ready');
+      el('authScreen').style.display='flex';
+      switchAuthTab('login');
+      hideAuthError();
+    }
+  });
+}
+
+function enterApp(user){
+  currentUser = user;
+  el('authScreen').style.display='none';
+  el('app-root').classList.add('ready');
+  renderUserChip(user);
+  updateAdminNav();
+  bootApp();
+}
+
+auth.onAuthStateChanged(user => {
+  if(user){
+    // A real Firebase account always takes priority over admin/test mode
+    isAdminSession = false;
+    sessionStorage.removeItem(ADMIN_SESSION_KEY);
+    enterApp(user);
+  } else if(isAdminSession || isLoginScreenDisabled()){
+    enterApp(null);
+  } else {
+    currentUser = null;
+    el('app-root').classList.remove('ready');
+    el('authScreen').style.display='flex';
+    ['loginEmail','loginPassword','signupEmail','signupPassword','adminUsername','adminPassword'].forEach(id=>{ if(el(id)) el(id).value=''; });
+    hideAuthError();
+  }
+});
+
+function renderUserChip(user){
+  let name, email, photoURL = null;
+  if(user){
+    name  = user.displayName || (user.email?user.email.split('@')[0]:'User');
+    email = user.email || '';
+    photoURL = user.photoURL;
+  } else if(isAdminSession){
+    name = 'Admin'; email = 'Test mode — no real account';
+  } else {
+    name = 'Guest'; email = 'Login screen disabled';
+  }
+  el('userName').textContent  = name;
+  el('userName').title = email;
+  const av = el('userAvatar');
+  if(photoURL){
+    av.innerHTML = `<img src="${photoURL}" alt="">`;
+  } else {
+    av.textContent = name.charAt(0).toUpperCase();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// ADMIN LOGIN + LOGIN-SCREEN ENABLE/DISABLE
+// Client-side only: credentials live in this browser's localStorage.
+// This is a convenience gate for local testing/demos, not real
+// server-side security — don't rely on it to protect real user data.
+// ═══════════════════════════════════════════════════════════
+const ADMIN_CREDS_KEY   = 'receiptvault_admin_creds';
+const LOGIN_DISABLED_KEY= 'receiptvault_login_disabled';
+const ADMIN_SESSION_KEY = 'receiptvault_admin_session';
+let isAdminSession = sessionStorage.getItem(ADMIN_SESSION_KEY) === '1';
+
+function getAdminCreds(){
+  try {
+    const stored = JSON.parse(localStorage.getItem(ADMIN_CREDS_KEY));
+    if(stored && stored.username && stored.password) return stored;
+  } catch(_){}
+  return { username: 'admin', password: 'admin123' };
+}
+function isLoginScreenDisabled(){ return localStorage.getItem(LOGIN_DISABLED_KEY) === '1'; }
+
+function doAdminLogin(){
+  hideAuthError();
+  const u = el('adminUsername').value.trim();
+  const p = el('adminPassword').value;
+  const creds = getAdminCreds();
+  if(!u || !p){ showAuthError('Enter both admin username and password.'); return; }
+  if(u === creds.username && p === creds.password){
+    isAdminSession = true;
+    sessionStorage.setItem(ADMIN_SESSION_KEY, '1');
+    el('adminUsername').value=''; el('adminPassword').value='';
+    enterApp(null);
+    toast('Admin access granted — test mode active','success');
+  } else {
+    showAuthError('Incorrect admin username or password.');
+  }
+}
+
+function updateAdminNav(){
+  const show = isAdminSession;
+  const sect = el('adminNavSect'), btn = el('adminNavBtn');
+  if(sect) sect.style.display = show?'block':'none';
+  if(btn)  btn.style.display  = show?'flex':'none';
+}
+
+function refreshAdminPanel(){
+  const toggle = el('loginDisabledToggle');
+  const disabled = isLoginScreenDisabled();
+  if(toggle) toggle.className = 'toggle'+(!disabled?' on':'');
+  const statusEl = el('loginStatusText');
+  if(statusEl){
+    statusEl.textContent = disabled
+      ? 'Login screen is DISABLED — anyone opening this app on this device/browser goes straight into test mode.'
+      : 'Login screen is active — visitors must log in, sign up, or use Admin access.';
+  }
+  const creds = getAdminCreds();
+  if(el('newAdminUsername')) el('newAdminUsername').placeholder = `Current: ${creds.username}`;
+}
+
+function toggleLoginScreen(){
+  const disabled = isLoginScreenDisabled();
+  localStorage.setItem(LOGIN_DISABLED_KEY, disabled ? '0' : '1');
+  refreshAdminPanel();
+  toast(disabled ? 'Login screen re-enabled' : 'Login screen disabled — app now opens directly', 'success');
+}
+
+function updateAdminCreds(){
+  const u = el('newAdminUsername').value.trim();
+  const p = el('newAdminPassword').value;
+  if(!u || !p){ toast('Enter both a new username and password.','error'); return; }
+  if(p.length < 4){ toast('Password should be at least 4 characters.','error'); return; }
+  localStorage.setItem(ADMIN_CREDS_KEY, JSON.stringify({ username: u, password: p }));
+  el('newAdminUsername').value=''; el('newAdminPassword').value='';
+  refreshAdminPanel();
+  toast('Admin credentials updated','success');
+}
+
+// ═══════════════════════════════════════════════════════════
+// INDEXEDDB — receipts stored per-user (by Firebase UID)
+// Replaces LocalStorage for receipt data so the app can handle
+// hundreds/thousands of receipts without LocalStorage's 5-10MB cap.
+// Database name: ReceiptVaultDB · Store: receipts (keyPath: id)
+// Every receipt record carries a `uid` field; all queries filter
+// by uid so two accounts never see each other's data.
+// ═══════════════════════════════════════════════════════════
+const IDB_NAME = 'ReceiptVaultDB';
+const IDB_VERSION = 1;
+const IDB_STORE = 'receipts';
+let idb = null;
+
+function openIDB(){
+  return new Promise((resolve, reject)=>{
+    const req = indexedDB.open(IDB_NAME, IDB_VERSION);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if(!db.objectStoreNames.contains(IDB_STORE)){
+        const store = db.createObjectStore(IDB_STORE, { keyPath: 'id' });
+        store.createIndex('uid', 'uid', { unique:false });
+        store.createIndex('uid_date', ['uid','date'], { unique:false });
+      }
+    };
+    req.onsuccess = e => { idb = e.target.result; resolve(idb); };
+    req.onerror   = e => reject(e.target.error);
+  });
+}
+function idbTx(mode){ return idb.transaction(IDB_STORE, mode).objectStore(IDB_STORE); }
+function idbGetAllForUser(uid){
+  return new Promise((resolve, reject)=>{
+    const store = idbTx('readonly');
+    const idx = store.index('uid');
+    const req = idx.getAll(uid);
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror   = () => reject(req.error);
+  });
+}
+function idbPut(record){
+  return new Promise((resolve, reject)=>{
+    const req = idbTx('readwrite').put(record);
+    req.onsuccess = () => resolve();
+    req.onerror   = () => reject(req.error);
+  });
+}
+function idbDelete(id){
+  return new Promise((resolve, reject)=>{
+    const req = idbTx('readwrite').delete(id);
+    req.onsuccess = () => resolve();
+    req.onerror   = () => reject(req.error);
+  });
+}
+function idbBulkPut(records){
+  return new Promise((resolve, reject)=>{
+    const store = idbTx('readwrite');
+    let done = 0;
+    if(!records.length){ resolve(); return; }
+    records.forEach(rec=>{
+      const req = store.put(rec);
+      req.onsuccess = ()=>{ done++; if(done===records.length) resolve(); };
+      req.onerror   = ()=> reject(req.error);
+    });
+  });
+}
+
+// ── ONE-TIME MIGRATION: old LocalStorage receipts → IndexedDB ──
+// Old key pattern was receiptvault_receipts_<uid> (JSON array in LocalStorage).
+// We copy every record into IndexedDB tagged with the user's uid, and only
+// after every record is confirmed written do we mark migration complete.
+// The old LocalStorage key is NEVER deleted automatically — kept as a safety
+// net in case something goes wrong; it simply stops being read once migrated.
+async function migrateLocalStorageToIDB(uid){
+  const migFlagKey = `receiptvault_migrated_${uid}`;
+  if(localStorage.getItem(migFlagKey)==='1') return; // already migrated
+
+  const oldKey = `receiptvault_receipts_${uid}`;
+  let oldData = [];
+  try { oldData = JSON.parse(localStorage.getItem(oldKey) || '[]'); } catch(_){ oldData = []; }
+
+  if(!oldData.length){
+    localStorage.setItem(migFlagKey, '1'); // nothing to migrate, mark done
+    return;
+  }
+
+  try {
+    const existing = await idbGetAllForUser(uid);
+    const existingIds = new Set(existing.map(r=>r.id));
+    const toMigrate = oldData
+      .filter(r=> r && !existingIds.has(r.id))
+      .map(r=> normalizeReceiptForIDB(r, uid));
+
+    await idbBulkPut(toMigrate);
+    // Only mark migrated AFTER successful write — do not delete old key
+    localStorage.setItem(migFlagKey, '1');
+    if(toMigrate.length){
+      toast(`Migrated ${toMigrate.length} receipt${toMigrate.length!==1?'s':''} to IndexedDB`, 'success');
+    }
+  } catch(err){
+    console.error('Migration failed, will retry next load:', err);
+    // Do NOT set migrated flag — retry on next bootApp() call
+  }
+}
+function normalizeReceiptForIDB(r, uid){
+  return {
+    id: r.id || genId(),
+    uid: uid,
+    image: r.image || '',
+    vendor: r.vendor || 'Unknown',
+    date: r.date || todayISO(),
+    total: n(r.total),
+    subtotal: n(r.subtotal),
+    tax: n(r.tax),
+    category: r.category || 'Other',
+    paymentMethod: r.paymentMethod || 'Other',
+    ocrText: r.ocrText || '',
+    receiptNumber: r.receiptNumber || r.receiptNum || '',
+    notes: r.notes || '',
+    savedAt: r.savedAt || new Date().toISOString(),
+  };
+}
+
+// ═══════════════════════════════════════════════════════════
+// STATE & SETTINGS (settings stay in LocalStorage — small, simple key/value;
+// only the potentially-large receipts collection moves to IndexedDB)
+// ═══════════════════════════════════════════════════════════
+function SETTINGS_KEY(){
+  const uid = currentUser ? currentUser.uid : 'anon';
+  return `receiptvault_settings_${uid}`;
+}
+function THEME_KEY(){
+  const uid = currentUser ? currentUser.uid : 'anon';
+  return `receiptvault_theme_${uid}`;
+}
+let receipts = [];
+let settings = { apiKey:'', model:'gemini-2.5-flash' };
+let currentFile = null;
+let currentBase64 = null;
+let currentMime = null;
+let sortCol = 'date'; let sortDir = 'desc'; let curPage = 1; const PER_PAGE = 15;
+let allCharts = {};
+
+async function loadData(){
+  const uid = currentUser ? currentUser.uid : 'anon';
+  await migrateLocalStorageToIDB(uid);
+  try { receipts = await idbGetAllForUser(uid); } catch(e){ console.error('IndexedDB load failed:', e); receipts = []; }
+  settings = { apiKey:'', model:'gemini-2.5-flash' };
+  try { const s=JSON.parse(localStorage.getItem(SETTINGS_KEY())||'{}'); settings={...settings,...s}; } catch(_){}
+}
+async function saveReceipts(){
+  // Persists the full in-memory `receipts` array's most recent item set —
+  // used after bulk operations (import, clear). Individual add/edit/delete
+  // use idbPut/idbDelete directly for efficiency with large datasets.
+  const uid = currentUser ? currentUser.uid : 'anon';
+  const tagged = receipts.map(r=>({...r, uid}));
+  await idbBulkPut(tagged);
+  updateStorage();
+}
+function saveSettings(){ localStorage.setItem(SETTINGS_KEY(), JSON.stringify(settings)); }
+function updateStorage(){
+  el('storageAmt').textContent = `${receipts.length} receipt${receipts.length!==1?'s':''}`;
+  const pct = Math.min(100, (receipts.length/2000)*100); // visual indicator only; IndexedDB scales far beyond this
+  el('storageFill').style.width = pct+'%';
+  el('recBadge').textContent = receipts.length;
+}
+
+// ═══════════════════════════════════════════════════════════
+// THEME
+// ═══════════════════════════════════════════════════════════
+function applyTheme(dark){
+  document.documentElement.setAttribute('data-theme', dark?'dark':'light');
+  localStorage.setItem(THEME_KEY(), dark?'dark':'light');
+  el('themeIcon').className = dark?'fas fa-sun':'fas fa-moon';
+  const dt = el('darkToggle');
+  if(dt) dt.className = 'toggle'+(dark?' on':'');
+  killCharts(); rerenderCurrentPage();
+}
+function toggleTheme(){
+  const dark = document.documentElement.getAttribute('data-theme')==='dark';
+  applyTheme(!dark);
+}
+const isDark=()=>document.documentElement.getAttribute('data-theme')==='dark';
+
+// ═══════════════════════════════════════════════════════════
+// NAVIGATION — with Back / Home history stack
+// ═══════════════════════════════════════════════════════════
+const PAGE_TITLES = { dashboard:'Dashboard', upload:'Upload Receipt', receipts:'All Receipts',
+  analytics:'Analytics', reports:'Reports', settings:'Settings', admin:'Admin Panel' };
+let currentPage = 'dashboard';
+let navHistory = ['dashboard']; // stack of visited pages, current page is NOT pushed twice in a row
+
+function navigateTo(page, fromHistory){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  el('page-'+page).classList.add('active');
+  const nb = document.querySelector(`[data-page="${page}"]`);
+  if(nb) nb.classList.add('active');
+  el('pageTitle').textContent = PAGE_TITLES[page]||page;
+  el('bodyScroll').scrollTop = 0;
+  el('sidebar').classList.remove('mob-open');
+  if(page==='admin') refreshAdminPanel();
+
+  if(!fromHistory && page!==currentPage){
+    navHistory.push(page);
+    if(navHistory.length>50) navHistory.shift(); // cap history size
+  }
+  currentPage = page;
+  updateNavButtons();
+  renderPage(page);
+}
+function goBack(){
+  if(navHistory.length<=1) return; // nothing to go back to
+  navHistory.pop(); // discard current
+  const prev = navHistory[navHistory.length-1] || 'dashboard';
+  navigateTo(prev, true);
+}
+function goHome(){
+  navHistory = ['dashboard'];
+  navigateTo('dashboard', true);
+}
+function updateNavButtons(){
+  el('navBackBtn').disabled = navHistory.length<=1;
+  el('navHomeBtn').disabled = currentPage==='dashboard';
+}
+function rerenderCurrentPage(){ renderPage(currentPage); }
+function renderPage(page){
+  if(page==='dashboard')  renderDashboard();
+  if(page==='receipts')   { populateFilters(); renderTable(); }
+  if(page==='analytics')  renderAnalytics();
+  if(page==='reports')    { populateReportYears(); renderReports(); }
+  if(page==='settings')   renderSettings();
+}
+// NOTE: nav-item / mobMenuBtn / themeToggle / uploadZone / file-input
+// listeners are bound once inside bootApp() after the first successful
+// login (see bottom of file), to avoid double-binding across logins.
+
+// ═══════════════════════════════════════════════════════════
+// UPLOAD & FILE HANDLING
+// ═══════════════════════════════════════════════════════════
+function handleFiles(files){
+  if(!files||!files.length) return;
+  const file = files[0];
+  const validTypes = ['image/jpeg','image/png','image/jpg','application/pdf'];
+  if(!validTypes.includes(file.type)){
+    toast('Invalid file type. Use JPG, PNG, or PDF.', 'error'); return;
+  }
+  currentFile = file;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const dataUrl = ev.target.result;
+    const b64 = dataUrl.split(',')[1];
+    currentBase64 = b64;
+    currentMime = file.type;
+    showProcPanel(dataUrl, file);
+    clearFields();
+    const k = el('apiKeyInput').value || settings.apiKey;
+    if(!k){ setStatus('idle','No API key — fill fields manually'); enableSave(); return; }
+    runGemini();
+  };
+  reader.readAsDataURL(file);
+}
+function showProcPanel(dataUrl, file){
+  el('procPanel').style.display='block';
+  const w = el('procThumbWrap');
+  if(file.type==='application/pdf'){
+    w.innerHTML=`<div class="proc-thumb-pdf"><i class="fas fa-file-pdf"></i><span>${esc(file.name)}</span></div>`;
+  } else {
+    w.innerHTML=`<img class="proc-thumb" src="${dataUrl}" alt="Receipt" loading="lazy">`;
+  }
+  el('dupWarn').style.display='none';
+  el('insightPanel').style.display='none';
+  el('saveBtn').disabled=true;
+  setProgress(0);
+}
+function clearUpload(){
+  currentFile=null; currentBase64=null; currentMime=null;
+  el('procPanel').style.display='none';
+  el('file-input').value='';
+  clearFields();
+  setStatus('idle','Ready');
+}
+function clearFields(){
+  ['f-vendor','f-date','f-subtotal','f-tax','f-total','f-notes','f-receiptnum'].forEach(id=>{ const e=el(id); if(e) e.value=''; });
+  el('f-category').value='Other';
+  el('f-payment').value='Credit Card';
+  el('catConf').innerHTML='';
+  el('saveBtn').disabled=true;
+}
+function enableSave(){ el('saveBtn').disabled=false; }
+function setStatus(type, text){
+  const dot = el('statusDot');
+  dot.className='status-dot '+type;
+  el('statusText').textContent=text;
+}
+function setProgress(pct){ el('progFill').style.width=pct+'%'; }
+
+// ═══════════════════════════════════════════════════════════
+// GEMINI VISION API
+// ═══════════════════════════════════════════════════════════
+async function runGemini(){
+  const key = settings.apiKey;
+  if(!key){ toast('Set your Gemini API key in Settings first.','warning'); setStatus('idle','No API key'); enableSave(); return; }
+  if(!currentBase64){ toast('No image loaded.','warning'); return; }
+  setStatus('scanning','Sending to Gemini Vision…');
+  setProgress(20);
+  el('saveBtn').disabled=true;
+
+  const PROMPT = `You are an expert accountant assistant. Analyse this receipt image and extract the following data. Return ONLY valid JSON with no markdown, no explanation, no code blocks. Use this exact structure:
+{"vendor":"","date":"","subtotal":0,"tax":0,"total":0,"category":"","paymentMethod":"","notes":"","receiptNumber":""}
+
+Rules:
+- vendor: business name exactly as on receipt
+- date: ISO format YYYY-MM-DD
+- subtotal: number before tax (0 if not shown)
+- tax: tax amount as number (0 if none)
+- total: final total amount as number
+- category: MUST be one of: Fuel, Meals, Travel, Office Supplies, Inventory, Advertising, Utilities, Software, Vehicle, Insurance, Rent, Other
+- paymentMethod: Credit Card, Debit Card, Cash, Bank Transfer, Check, or Other
+- notes: any useful note about the purchase (max 80 chars) or empty string
+- receiptNumber: receipt/invoice number if visible, else empty string
+If any field cannot be determined, use "" for strings and 0 for numbers.`;
+
+  const model = settings.model || 'gemini-2.5-flash';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+
+  const body = {
+    contents:[{ parts:[
+      { text: PROMPT },
+      { inline_data:{ mime_type: currentMime==='application/pdf'?'application/pdf':currentMime, data: currentBase64 } }
+    ]}],
+    generationConfig:{ temperature:0.1, maxOutputTokens:512, responseMimeType:'application/json' }
+  };
+
+  try {
+    setProgress(40);
+    const res = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+    setProgress(70);
+    if(!res.ok){
+      const err = await res.json().catch(()=>({error:{message:res.statusText}}));
+      const msg = err?.error?.message || res.statusText;
+      if(res.status===400&&msg.includes('API_KEY')) throw new Error('Invalid API key. Check Settings.');
+      if(res.status===403) throw new Error('API key lacks permission or quota exceeded.');
+      throw new Error('Gemini API error: '+msg);
+    }
+    const data = await res.json();
+    setProgress(90);
+
+    if(data?.promptFeedback?.blockReason){
+      throw new Error('Gemini blocked this image: '+data.promptFeedback.blockReason+'. Try a different photo.');
+    }
+    if(!data?.candidates?.length){
+      throw new Error('Gemini returned no result. The image may be unreadable — try re-scanning or enter manually.');
+    }
+    const candidate = data.candidates[0];
+    if(candidate.finishReason==='SAFETY'){
+      throw new Error('Gemini blocked this image for safety reasons. Try a different photo.');
+    }
+    if(candidate.finishReason==='MAX_TOKENS'){
+      console.warn('Gemini response was truncated (MAX_TOKENS)');
+    }
+    const rawText = candidate?.content?.parts?.[0]?.text || '';
+    if(!rawText.trim()){
+      throw new Error('Gemini returned an empty response. Try re-scanning.');
+    }
+    let parsed;
+    try {
+      const cleaned = rawText.replace(/```json/g,'').replace(/```/g,'').trim();
+      parsed = JSON.parse(cleaned);
+    } catch(_){ throw new Error('Gemini returned unreadable response. Try re-scanning.'); }
+    fillFields(parsed);
+    checkDuplicate(parsed);
+    generateInsight(parsed);
+    setProgress(100);
+    setStatus('done','Extracted successfully ✓');
+    enableSave();
+    toast('Receipt scanned successfully!','success');
+  } catch(err){
+    console.error('Gemini error:', err);
+    setStatus('error', err.message||'Scan failed');
+    setProgress(0);
+    toast(err.message||'Scan failed','error');
+    enableSave();
+  }
+}
+
+function fillFields(data){
+  el('f-vendor').value    = data.vendor      || '';
+  el('f-date').value      = data.date        || todayISO();
+  el('f-subtotal').value  = data.subtotal>0  ? data.subtotal : '';
+  el('f-tax').value       = data.tax>0       ? data.tax      : '';
+  el('f-total').value     = data.total>0     ? data.total    : '';
+  el('f-notes').value     = data.notes       || '';
+  if(el('f-receiptnum')) el('f-receiptnum').value = data.receiptNumber || '';
+  const cats = ['Fuel','Meals','Travel','Office Supplies','Inventory','Advertising','Utilities','Software','Vehicle','Insurance','Rent','Other'];
+  el('f-category').value  = cats.includes(data.category) ? data.category : 'Other';
+  const pmts = ['Credit Card','Debit Card','Cash','Bank Transfer','Check','Other'];
+  el('f-payment').value   = pmts.includes(data.paymentMethod) ? data.paymentMethod : 'Other';
+  const conf = data.total>0&&data.vendor ? 'high' : data.total>0||data.vendor ? 'med' : 'low';
+  el('catConf').innerHTML = `<span class="conf-tag conf-${conf}">${conf}</span>`;
+}
+
+function checkDuplicate(data){
+  if(!data.total||!data.vendor) return;
+  const dup = receipts.find(r=>
+    r.vendor&&r.vendor.toLowerCase()===String(data.vendor).toLowerCase() &&
+    Math.abs(r.total-Number(data.total))<0.01 &&
+    r.date===data.date
+  );
+  if(dup){
+    el('dupWarn').style.display='flex';
+    el('dupMsg').textContent=`Possible duplicate: "${dup.vendor}" on ${dup.date} for $${dup.total.toFixed(2)}`;
+  } else { el('dupWarn').style.display='none'; }
+}
+function generateInsight(data){
+  if(!data.vendor&&!data.total) return;
+  const catTip = {
+    Fuel:"Fuel expenses are often deductible. Keep mileage logs alongside receipts.",
+    Meals:"Business meals: note attendees and business purpose for tax compliance.",
+    Travel:"Travel receipts: track per diem vs actuals. Consider a travel policy.",
+    'Office Supplies':"Office supplies are fully deductible in most jurisdictions.",
+    Inventory:"Inventory tracking affects COGS — ensure this matches your stock records.",
+    Advertising:"Marketing spend: tag campaigns to measure ROI across receipts.",
+    Utilities:"Utilities for home offices may be partially deductible — check local rules.",
+    Software:"SaaS/software subscriptions are typically 100% deductible business expenses.",
+    Vehicle:"Vehicle expenses: log business vs personal use for accurate deduction claims.",
+    Insurance:"Business insurance premiums are deductible — track policy periods.",
+    Rent:"Rent expense: ensure lease agreement is on file for audit purposes.",
+    Other:"Uncategorised expense — review and recategorise for accurate reporting.",
+  };
+  const tip = catTip[data.category]||catTip['Other'];
+  const cat = data.category||'Uncategorised';
+  const vend = data.vendor||'this vendor';
+  const amt  = data.total ? `$${Number(data.total).toFixed(2)}` : 'this amount';
+  el('insightText').textContent=`${cat} purchase from ${vend} for ${amt}. ${tip}`;
+  el('insightPanel').style.display='block';
+}
+
+// ═══════════════════════════════════════════════════════════
+// SAVE RECEIPT — writes directly to IndexedDB (efficient for large datasets)
+// ═══════════════════════════════════════════════════════════
+async function saveCurrentReceipt(){
+  const total = parseFloat(el('f-total').value)||0;
+  if(!el('f-vendor').value.trim()&&total===0){
+    toast('Enter at least a vendor name or total amount.','warning'); return;
+  }
+  showLoading('Saving receipt…');
+  let imageData = '';
+  if(currentBase64 && currentMime && currentMime!=='application/pdf'){
+    imageData = await resizeImage(currentBase64, currentMime, 1400);
+  }
+  const uid = currentUser ? currentUser.uid : 'anon';
+  const rec = {
+    id: genId(),
+    uid: uid,
+    vendor:        el('f-vendor').value.trim()||'Unknown',
+    date:          el('f-date').value||todayISO(),
+    subtotal:      parseFloat(el('f-subtotal').value)||0,
+    tax:           parseFloat(el('f-tax').value)||0,
+    total:         parseFloat(el('f-total').value)||0,
+    category:      el('f-category').value||'Other',
+    paymentMethod: el('f-payment').value||'Other',
+    ocrText:       '',
+    receiptNumber: el('f-receiptnum') ? el('f-receiptnum').value.trim() : '',
+    notes:         el('f-notes').value.trim(),
+    image:         imageData,
+    savedAt:       new Date().toISOString(),
+  };
+  try {
+    await idbPut(rec);
+    receipts.unshift(rec);
+    updateStorage();
+    hideLoading();
+    clearUpload();
+    toast(`"${rec.vendor}" saved successfully!`,'success');
+    navigateTo('dashboard');
+  } catch(err){
+    hideLoading();
+    toast('Save failed: '+err.message,'error');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════════════════
+function renderDashboard(){
+  renderDashStats();
+  renderDashCharts();
+  renderRecentList();
+}
+function renderDashStats(){
+  const tot = receipts.length;
+  const tAmt = receipts.reduce((s,r)=>s+n(r.total),0);
+  const tTax = receipts.reduce((s,r)=>s+n(r.tax),0);
+  const now = new Date();
+  const mKey = `${now.getFullYear()}-${pad(now.getMonth()+1)}`;
+  const mRec = receipts.filter(r=>r.date&&r.date.startsWith(mKey));
+  const mAmt = mRec.reduce((s,r)=>s+n(r.total),0);
+  const catTots = groupBy(receipts,'category',r=>n(r.total));
+  const topCat = Object.entries(catTots).sort((a,b)=>b[1]-a[1])[0];
+  el('dash-stats').innerHTML=`
+    <div class="stat-card blue"><div class="stat-top"><div class="stat-label">Total Receipts</div><div class="stat-icon si-blue"><i class="fas fa-receipt"></i></div></div><div class="stat-value">${tot}</div><div class="stat-sub">all time</div></div>
+    <div class="stat-card green"><div class="stat-top"><div class="stat-label">Total Expenses</div><div class="stat-icon si-green"><i class="fas fa-dollar-sign"></i></div></div><div class="stat-value">${fmt(tAmt)}</div><div class="stat-sub">all time</div></div>
+    <div class="stat-card amber"><div class="stat-top"><div class="stat-label">This Month</div><div class="stat-icon si-amber"><i class="fas fa-calendar"></i></div></div><div class="stat-value">${fmt(mAmt)}</div><div class="stat-sub">${mRec.length} receipts</div></div>
+    <div class="stat-card purple"><div class="stat-top"><div class="stat-label">Tax Paid</div><div class="stat-icon si-purple"><i class="fas fa-percentage"></i></div></div><div class="stat-value">${fmt(tTax)}</div><div class="stat-sub">total tax</div></div>
+    <div class="stat-card teal"><div class="stat-top"><div class="stat-label">Top Category</div><div class="stat-icon si-teal"><i class="fas fa-tag"></i></div></div><div class="stat-value" style="font-size:16px;margin-top:4px">${topCat?topCat[0]:'—'}</div><div class="stat-sub">${topCat?fmt(topCat[1]):''}</div></div>
+  `;
+}
+function renderRecentList(){
+  const src = receipts.slice(0,7);
+  if(!src.length){ el('recentList').innerHTML=`<div class="empty-state"><i class="fas fa-inbox"></i><h3>No receipts yet</h3><p>Upload a receipt to get started</p></div>`; return; }
+  el('recentList').innerHTML=src.map(r=>`
+    <div onclick="viewReceipt('${r.id}')" style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer">
+      ${r.image?`<img src="data:image/jpeg;base64,${r.image}" style="width:38px;height:38px;object-fit:cover;border-radius:8px;border:1px solid var(--border);flex-shrink:0" loading="lazy">`:`<div class="no-thumb" style="flex-shrink:0"><i class="fas fa-receipt"></i></div>`}
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.vendor)}</div>
+        <div style="font-size:11px;color:var(--tx3)">${fmtDate(r.date)} · <span class="badge ${badgeClass(r.category)}">${r.category||'Other'}</span></div>
+      </div>
+      <div style="font-weight:700;color:var(--green);white-space:nowrap">${fmt(r.total)}</div>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════
+// CHARTS
+// ═══════════════════════════════════════════════════════════
+const COLORS=['#4f46e5','#059669','#d97706','#dc2626','#7c3aed','#0891b2','#db2777','#ea580c','#0284c7','#16a34a','#9333ea','#ca8a04'];
+function gOpts(){ return { txt:isDark()?'#8b92b8':'#4b5563', grid:isDark()?'#232740':'#e2e6f0', bg:isDark()?'#12141f':'#ffffff' }; }
+function killCharts(){ Object.values(allCharts).forEach(c=>{try{c.destroy()}catch(_){}});allCharts={}; }
+function mkBar(id,labels,data,label){
+  if(allCharts[id]) try{allCharts[id].destroy()}catch(_){}
+  const cv=el(id); if(!cv) return;
+  const g=gOpts();
+  allCharts[id]=new Chart(cv.getContext('2d'),{type:'bar',data:{labels,datasets:[{label,data,backgroundColor:COLORS[0]+'cc',borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmt(c.raw)},backgroundColor:g.bg,titleColor:isDark()?'#e8eaf6':'#111827',bodyColor:g.txt,borderColor:g.grid,borderWidth:1}},scales:{x:{ticks:{color:g.txt,font:{size:10}},grid:{color:g.grid}},y:{ticks:{color:g.txt,font:{size:10},callback:v=>'$'+v.toLocaleString()},grid:{color:g.grid}}}}});
+}
+function mkDoughnut(id,labels,data){
+  if(allCharts[id]) try{allCharts[id].destroy()}catch(_){}
+  const cv=el(id); if(!cv) return;
+  const g=gOpts();
+  allCharts[id]=new Chart(cv.getContext('2d'),{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:COLORS.slice(0,labels.length),borderWidth:2,borderColor:g.bg}]},options:{responsive:true,maintainAspectRatio:false,cutout:'58%',plugins:{legend:{position:'right',labels:{color:g.txt,font:{size:11},padding:10,boxWidth:11,boxHeight:11,borderRadius:3}},tooltip:{callbacks:{label:c=>` ${fmt(c.raw)}`},backgroundColor:g.bg,titleColor:isDark()?'#e8eaf6':'#111827',bodyColor:g.txt,borderColor:g.grid,borderWidth:1}}}});
+}
+function mkLine(id,labels,data,label){
+  if(allCharts[id]) try{allCharts[id].destroy()}catch(_){}
+  const cv=el(id); if(!cv) return;
+  const g=gOpts();
+  allCharts[id]=new Chart(cv.getContext('2d'),{type:'line',data:{labels,datasets:[{label,data,borderColor:COLORS[0],backgroundColor:COLORS[0]+'22',fill:true,tension:.38,pointRadius:4,pointBackgroundColor:COLORS[0]}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmt(c.raw)},backgroundColor:g.bg,titleColor:isDark()?'#e8eaf6':'#111827',bodyColor:g.txt,borderColor:g.grid,borderWidth:1}},scales:{x:{ticks:{color:g.txt,font:{size:10}},grid:{color:g.grid}},y:{ticks:{color:g.txt,font:{size:10},callback:v=>'$'+v.toLocaleString()},grid:{color:g.grid}}}}});
+}
+function mkHBar(id,labels,data){
+  if(allCharts[id]) try{allCharts[id].destroy()}catch(_){}
+  const cv=el(id); if(!cv) return;
+  const g=gOpts();
+  allCharts[id]=new Chart(cv.getContext('2d'),{type:'bar',data:{labels,datasets:[{data,backgroundColor:COLORS.map(c=>c+'cc'),borderRadius:4}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmt(c.raw)},backgroundColor:g.bg,titleColor:isDark()?'#e8eaf6':'#111827',bodyColor:g.txt,borderColor:g.grid,borderWidth:1}},scales:{x:{ticks:{color:g.txt,font:{size:10},callback:v=>'$'+v.toLocaleString()},grid:{color:g.grid}},y:{ticks:{color:g.txt,font:{size:10}},grid:{color:g.grid}}}}});
+}
+
+function getMonthlyData(months=12){
+  const now=new Date(); const res=[];
+  for(let i=months-1;i>=0;i--){
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    const k=`${d.getFullYear()}-${pad(d.getMonth()+1)}`;
+    const lbl=d.toLocaleDateString('en',{month:'short',year:'2-digit'});
+    const amt=receipts.filter(r=>r.date&&r.date.startsWith(k)).reduce((s,r)=>s+n(r.total),0);
+    res.push({lbl,amt});
+  }
+  return res;
+}
+function getCatData(){
+  const t={};
+  receipts.forEach(r=>{const c=r.category||'Other';t[c]=(t[c]||0)+n(r.total);});
+  return Object.entries(t).sort((a,b)=>b[1]-a[1]);
+}
+function getVendorData(top=8){
+  const t={};
+  receipts.forEach(r=>{const v=r.vendor||'Unknown';t[v]=(t[v]||0)+n(r.total);});
+  return Object.entries(t).sort((a,b)=>b[1]-a[1]).slice(0,top);
+}
+function renderDashCharts(){
+  const mon=getMonthlyData(12);
+  mkBar('chartMonthly',mon.map(m=>m.lbl),mon.map(m=>m.amt),'Expenses');
+  const cat=getCatData();
+  mkDoughnut('chartCategory',cat.map(c=>c[0]),cat.map(c=>c[1]));
+  const vend=getVendorData(8);
+  mkHBar('chartVendors',vend.map(v=>v[0]),vend.map(v=>v[1]));
+}
+
+// ═══════════════════════════════════════════════════════════
+// RECEIPTS TABLE / CARDS (responsive: table on desktop, cards on mobile)
+// ═══════════════════════════════════════════════════════════
+function populateFilters(){
+  const cats=[...new Set(receipts.map(r=>r.category).filter(Boolean))].sort();
+  const months=[...new Set(receipts.map(r=>r.date?r.date.slice(0,7):'').filter(Boolean))].sort().reverse();
+  const years=[...new Set(receipts.map(r=>r.date?r.date.slice(0,4):'').filter(Boolean))].sort().reverse();
+  const vendors=[...new Set(receipts.map(r=>r.vendor).filter(Boolean))].sort();
+  populateSel('filterCat','All Categories',cats,v=>v);
+  populateSel('filterMonth','All Months',months,v=>v,v=>fmtYM(v));
+  populateSel('filterYear','All Years',years,v=>v);
+  populateSel('filterVendor','All Vendors',vendors,v=>v);
+}
+function populateSel(id,def,items,val,lbl){
+  const s=el(id); if(!s) return;
+  const cur=s.value;
+  s.innerHTML=`<option value="">${def}</option>`+items.map(i=>`<option value="${val(i)}">${lbl?lbl(i):i}</option>`).join('');
+  if(cur) s.value=cur;
+}
+function getFiltered(){
+  let d=[...receipts];
+  const fc=el('filterCat')?.value, fm=el('filterMonth')?.value, fy=el('filterYear')?.value, fv=el('filterVendor')?.value;
+  const gs=el('globalSearch')?.value?.toLowerCase()||'';
+  if(fc) d=d.filter(r=>r.category===fc);
+  if(fm) d=d.filter(r=>r.date&&r.date.startsWith(fm));
+  if(fy) d=d.filter(r=>r.date&&r.date.startsWith(fy));
+  if(fv) d=d.filter(r=>r.vendor===fv);
+  if(gs) d=d.filter(r=>(r.vendor||'').toLowerCase().includes(gs)||(r.category||'').toLowerCase().includes(gs)||String(r.total||'').includes(gs)||(r.date||'').includes(gs));
+  d.sort((a,b)=>{
+    let av=a[sortCol]||'',bv=b[sortCol]||'';
+    if(sortCol==='total'||sortCol==='subtotal'||sortCol==='tax'){av=n(av);bv=n(bv);}
+    if(av<bv) return sortDir==='asc'?-1:1;
+    if(av>bv) return sortDir==='asc'?1:-1;
+    return 0;
+  });
+  return d;
+}
+function renderTable(){
+  const d=getFiltered();
+  const pages=Math.max(1,Math.ceil(d.length/PER_PAGE));
+  if(curPage>pages) curPage=1;
+  const slice=d.slice((curPage-1)*PER_PAGE,curPage*PER_PAGE);
+  el('tableCount').textContent=`${d.length} receipt${d.length!==1?'s':''}`;
+
+  // Desktop table
+  const tb=el('receiptsTbody');
+  if(!slice.length){
+    tb.innerHTML=`<tr><td colspan="8"><div class="empty-state"><i class="fas fa-search"></i><h3>No receipts found</h3><p>Try adjusting your filters</p></div></td></tr>`;
+  } else {
+    tb.innerHTML=slice.map(r=>`<tr>
+      <td>${r.image?`<img class="thumb-cell" src="data:image/jpeg;base64,${r.image}" loading="lazy" onclick="viewReceipt('${r.id}')" alt="">`:`<div class="no-thumb"><i class="fas fa-receipt"></i></div>`}</td>
+      <td class="vendor-cell" title="${esc(r.vendor)}">${esc(r.vendor||'—')}</td>
+      <td style="white-space:nowrap;color:var(--tx2)">${fmtDate(r.date)}</td>
+      <td><span class="badge ${badgeClass(r.category)}">${r.category||'Other'}</span></td>
+      <td class="amt-cell">${fmt(r.total)}</td>
+      <td style="color:var(--tx2)">${r.tax?fmt(r.tax):'—'}</td>
+      <td style="color:var(--tx2);font-size:12px">${esc(r.paymentMethod||'—')}</td>
+      <td><div class="table-actions">
+        <button class="ta-btn view" title="View" onclick="viewReceipt('${r.id}')"><i class="fas fa-eye"></i></button>
+        <button class="ta-btn edit" title="Edit" onclick="editReceipt('${r.id}')"><i class="fas fa-pen"></i></button>
+        <button class="ta-btn delete" title="Delete" onclick="deleteReceipt('${r.id}')"><i class="fas fa-trash"></i></button>
+      </div></td>
+    </tr>`).join('');
+  }
+
+  // Mobile card view — same data, touch-friendly layout
+  const cardsWrap = el('receiptsCards');
+  if(!slice.length){
+    cardsWrap.innerHTML = `<div class="empty-state"><i class="fas fa-search"></i><h3>No receipts found</h3><p>Try adjusting your filters</p></div>`;
+  } else {
+    cardsWrap.innerHTML = slice.map(r=>`
+      <div class="rcard">
+        ${r.image?`<img class="rcard-thumb" src="data:image/jpeg;base64,${r.image}" loading="lazy" onclick="viewReceipt('${r.id}')" alt="">`:`<div class="rcard-noThumb"><i class="fas fa-receipt"></i></div>`}
+        <div class="rcard-body">
+          <div class="rcard-top">
+            <div class="rcard-vendor">${esc(r.vendor||'—')}</div>
+            <div class="rcard-amt">${fmt(r.total)}</div>
+          </div>
+          <div class="rcard-meta">
+            <span>${fmtDate(r.date)}</span>
+            <span class="badge ${badgeClass(r.category)}">${r.category||'Other'}</span>
+            ${r.paymentMethod?`<span>${esc(r.paymentMethod)}</span>`:''}
+          </div>
+          <div class="rcard-acts">
+            <button class="ta-btn view" title="View" onclick="viewReceipt('${r.id}')"><i class="fas fa-eye"></i></button>
+            <button class="ta-btn edit" title="Edit" onclick="editReceipt('${r.id}')"><i class="fas fa-pen"></i></button>
+            <button class="ta-btn delete" title="Delete" onclick="deleteReceipt('${r.id}')"><i class="fas fa-trash"></i></button>
+          </div>
+        </div>
+      </div>`).join('');
+  }
+
+  document.querySelectorAll('.receipt-table th[data-sort]').forEach(th=>{
+    th.className=sortCol===th.dataset.sort?'sort-'+sortDir:'';
+    th.onclick=()=>{ sortCol===th.dataset.sort?sortDir=sortDir==='asc'?'desc':'asc':(sortCol=th.dataset.sort,sortDir='asc'); curPage=1; renderTable(); };
+  });
+  const pw=el('paginationWrap');
+  if(pages<=1){pw.innerHTML='';return;}
+  let h='';
+  if(curPage>1) h+=`<button class="pg-btn" onclick="goPage(${curPage-1})"><i class="fas fa-chevron-left"></i></button>`;
+  const s=Math.max(1,curPage-2),e=Math.min(pages,s+4);
+  for(let i=s;i<=e;i++) h+=`<button class="pg-btn${i===curPage?' active':''}" onclick="goPage(${i})">${i}</button>`;
+  if(curPage<pages) h+=`<button class="pg-btn" onclick="goPage(${curPage+1})"><i class="fas fa-chevron-right"></i></button>`;
+  h+=`<span class="pg-info">Page ${curPage} of ${pages}</span>`;
+  pw.innerHTML=h;
+}
+function goPage(p){curPage=p;renderTable();}
+function handleSearch(){curPage=1;renderTable();}
+
+// ═══════════════════════════════════════════════════════════
+// VIEW / EDIT / DELETE RECEIPT (IndexedDB-backed)
+// ═══════════════════════════════════════════════════════════
+function viewReceipt(id){
+  const r=receipts.find(x=>x.id===id); if(!r) return;
+  const catTip={Fuel:"Fuel — keep mileage logs.",Meals:"Business meals — note purpose & attendees.",Travel:"Travel — compare per diem vs actuals.",'Office Supplies':"Fully deductible in most jurisdictions.",Inventory:"Affects COGS — match to stock records.",Advertising:"Tag campaigns for ROI tracking.",Utilities:"Partial home-office deduction may apply.",Software:"Typically 100% deductible.",Vehicle:"Log business vs personal use.",Insurance:"Keep policy documents on file.",Rent:"Ensure lease agreement is filed.",Other:"Review & recategorise for accurate reporting."};
+  el('viewModalBody').innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:20px">
+      <div>
+        ${r.image?`<img class="modal-img" src="data:image/jpeg;base64,${r.image}" alt="Receipt" loading="lazy">`:`<div style="height:200px;background:var(--bg2);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;color:var(--tx3);margin-bottom:14px;font-size:32px"><i class="fas fa-receipt"></i></div>`}
+        <div class="insight-panel" style="display:block">
+          <div class="ih"><i class="fas fa-lightbulb"></i>Accounting Note</div>
+          <p>${catTip[r.category||'Other']||catTip['Other']}</p>
+        </div>
+      </div>
+      <div>
+        <div class="detail-row"><span class="dr-label">Vendor</span><strong class="dr-value">${esc(r.vendor)}</strong></div>
+        <div class="detail-row"><span class="dr-label">Date</span><span class="dr-value">${fmtDate(r.date)}</span></div>
+        <div class="detail-row"><span class="dr-label">Category</span><span class="badge ${badgeClass(r.category)}">${r.category||'Other'}</span></div>
+        <div class="detail-row"><span class="dr-label">Payment</span><span class="dr-value">${esc(r.paymentMethod||'—')}</span></div>
+        <div class="detail-row"><span class="dr-label">Subtotal</span><span class="dr-value">${r.subtotal?fmt(r.subtotal):'—'}</span></div>
+        <div class="detail-row"><span class="dr-label">Tax</span><span class="dr-value">${r.tax?fmt(r.tax):'—'}</span></div>
+        <div class="detail-row"><span class="dr-label">Total</span><strong class="dr-value" style="font-size:20px;color:var(--green)">${fmt(r.total)}</strong></div>
+        ${r.receiptNumber?`<div class="detail-row"><span class="dr-label">Receipt #</span><span class="dr-value">${esc(r.receiptNumber)}</span></div>`:''}
+        ${r.notes?`<div class="detail-row"><span class="dr-label">Notes</span><span class="dr-value" style="font-size:12px;color:var(--tx2)">${esc(r.notes)}</span></div>`:''}
+        <div class="detail-row"><span class="dr-label">Saved</span><span class="dr-value" style="font-size:11px;color:var(--tx3)">${r.savedAt?new Date(r.savedAt).toLocaleString():'—'}</span></div>
+        <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+          <button class="btn btn-sm" onclick="editReceipt('${r.id}');closeModal('viewModal')"><i class="fas fa-pen"></i>Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteReceipt('${r.id}');closeModal('viewModal')"><i class="fas fa-trash"></i>Delete</button>
+        </div>
+      </div>
+    </div>`;
+  openModal('viewModal');
+}
+
+function editReceipt(id){
+  const r=receipts.find(x=>x.id===id); if(!r) return;
+  const cats=['Fuel','Meals','Travel','Office Supplies','Inventory','Advertising','Utilities','Software','Vehicle','Insurance','Rent','Other'];
+  const pmts=['Credit Card','Debit Card','Cash','Bank Transfer','Check','Other'];
+  el('editModalBody').innerHTML=`
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="field"><label>Vendor</label><input type="text" id="e-vendor" value="${esc(r.vendor||'')}"></div>
+      <div class="field"><label>Date</label><input type="date" id="e-date" value="${r.date||''}"></div>
+      <div class="field"><label>Subtotal ($)</label><input type="number" id="e-subtotal" value="${r.subtotal||''}" step="0.01"></div>
+      <div class="field"><label>Tax ($)</label><input type="number" id="e-tax" value="${r.tax||''}" step="0.01"></div>
+      <div class="field"><label>Total ($)</label><input type="number" id="e-total" value="${r.total||''}" step="0.01"></div>
+      <div class="field"><label>Category</label><select id="e-category">${cats.map(c=>`<option${c===r.category?' selected':''}>${c}</option>`).join('')}</select></div>
+      <div class="field"><label>Payment Method</label><select id="e-payment">${pmts.map(p=>`<option${p===r.paymentMethod?' selected':''}>${p}</option>`).join('')}</select></div>
+      <div class="field"><label>Receipt #</label><input type="text" id="e-receiptnum" value="${esc(r.receiptNumber||'')}"></div>
+      <div class="field"><label>Notes</label><input type="text" id="e-notes" value="${esc(r.notes||'')}"></div>
+      <button class="btn btn-primary" onclick="saveEdit('${id}')"><i class="fas fa-save"></i>Save Changes</button>
+    </div>`;
+  openModal('editModal');
+}
+async function saveEdit(id){
+  const idx=receipts.findIndex(r=>r.id===id); if(idx<0) return;
+  const r=receipts[idx];
+  r.vendor=el('e-vendor').value.trim()||'Unknown';
+  r.date=el('e-date').value||todayISO();
+  r.subtotal=parseFloat(el('e-subtotal').value)||0;
+  r.tax=parseFloat(el('e-tax').value)||0;
+  r.total=parseFloat(el('e-total').value)||0;
+  r.category=el('e-category').value||'Other';
+  r.paymentMethod=el('e-payment').value||'Other';
+  r.receiptNumber=el('e-receiptnum')?el('e-receiptnum').value.trim():r.receiptNumber;
+  r.notes=el('e-notes').value.trim();
+  r.uid = currentUser ? currentUser.uid : 'anon';
+  try {
+    await idbPut(r);
+    receipts[idx]=r;
+    closeModal('editModal'); renderTable(); toast('Receipt updated','success');
+  } catch(err){ toast('Update failed: '+err.message,'error'); }
+}
+function deleteReceipt(id){
+  confirm2('Delete Receipt','Are you sure you want to permanently delete this receipt?',async ()=>{
+    try {
+      await idbDelete(id);
+      receipts=receipts.filter(r=>r.id!==id);
+      updateStorage();
+      renderTable();
+      toast('Receipt deleted','success');
+    } catch(err){ toast('Delete failed: '+err.message,'error'); }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// ANALYTICS
+// ═══════════════════════════════════════════════════════════
+function renderAnalytics(){
+  const tot=receipts.length, tA=receipts.reduce((s,r)=>s+n(r.total),0), tT=receipts.reduce((s,r)=>s+n(r.tax),0);
+  const avg=tot?tA/tot:0;
+  const hi=tot?receipts.reduce((m,r)=>n(r.total)>n(m.total)?r:m,receipts[0]):null;
+  const catTots=getCatData();
+  const topCat=catTots[0];
+  const vTots=getVendorData(1);
+  const mon=getMonthlyData(3);
+  const trend=mon[2]?.amt>mon[0]?.amt?'↑ up':mon[2]?.amt<mon[0]?.amt?'↓ down':'→ flat';
+  el('insightsGrid').innerHTML=`
+    <div class="insight-card"><h4>Largest Expense</h4><div class="ic-val">${hi?fmt(hi.total):'—'}</div><div class="ic-sub">${hi?esc(hi.vendor):'No data'}</div></div>
+    <div class="insight-card" style="border-left-color:var(--green)"><h4>Top Category</h4><div class="ic-val">${topCat?topCat[0]:'—'}</div><div class="ic-sub">${topCat?fmt(topCat[1]):''}</div></div>
+    <div class="insight-card" style="border-left-color:var(--amber)"><h4>Avg Receipt</h4><div class="ic-val">${fmt(avg)}</div><div class="ic-sub">across ${tot} receipts</div></div>
+    <div class="insight-card" style="border-left-color:var(--teal)"><h4>Tax Paid</h4><div class="ic-val">${fmt(tT)}</div><div class="ic-sub">total tax recorded</div></div>
+    <div class="insight-card" style="border-left-color:var(--purple)"><h4>Monthly Trend</h4><div class="ic-val">${trend}</div><div class="ic-sub">vs 3 months ago</div></div>
+    <div class="insight-card" style="border-left-color:var(--pink)"><h4>Top Vendor</h4><div class="ic-val" style="font-size:14px">${vTots.length?esc(vTots[0][0]):'—'}</div><div class="ic-sub">${vTots.length?fmt(vTots[0][1]):''}</div></div>
+  `;
+  const cat=getCatData();
+  mkDoughnut('chartCatB',cat.map(c=>c[0]),cat.map(c=>c[1]));
+  const mon12=getMonthlyData(12);
+  mkLine('chartTrend',mon12.map(m=>m.lbl),mon12.map(m=>m.amt),'Spend');
+  const vend=getVendorData(10);
+  mkHBar('chartVendorB',vend.map(v=>v[0]),vend.map(v=>v[1]));
+}
+
+// ═══════════════════════════════════════════════════════════
+// REPORTS
+// ═══════════════════════════════════════════════════════════
+function populateReportYears(){
+  const yrs=[...new Set(receipts.map(r=>r.date?r.date.slice(0,4):'').filter(Boolean))].sort().reverse();
+  populateSel('repYear','All Years',yrs,v=>v);
+}
+function renderReports(){
+  const yr=el('repYear')?.value, mon=el('repMonth')?.value;
+  let d=[...receipts];
+  if(yr) d=d.filter(r=>r.date&&r.date.startsWith(yr));
+  if(mon) d=d.filter(r=>r.date&&r.date.slice(5,7)===mon);
+  const tA=d.reduce((s,r)=>s+n(r.total),0), tT=d.reduce((s,r)=>s+n(r.tax),0), tS=d.reduce((s,r)=>s+n(r.subtotal),0);
+  const byCat={}, byMon={}, byVend={};
+  d.forEach(r=>{
+    const c=r.category||'Other'; if(!byCat[c]) byCat[c]={amt:0,cnt:0,tax:0}; byCat[c].amt+=n(r.total); byCat[c].cnt++; byCat[c].tax+=n(r.tax);
+    if(r.date){const m=r.date.slice(0,7);if(!byMon[m]) byMon[m]={amt:0,cnt:0};byMon[m].amt+=n(r.total);byMon[m].cnt++;}
+    const v=r.vendor||'Unknown'; if(!byVend[v]) byVend[v]={amt:0,cnt:0}; byVend[v].amt+=n(r.total); byVend[v].cnt++;
+  });
+  const mLabel=mon?['','January','February','March','April','May','June','July','August','September','October','November','December'][parseInt(mon)]:null;
+  const period=mLabel?`${yr||'All Years'} — ${mLabel}`:yr||'All Time';
+  el('reportContent').innerHTML=`
+    <div class="report-section">
+      <h3>Summary — ${esc(period)}</h3>
+      <div class="rep-row"><span style="color:var(--tx2)">Total Receipts</span><strong>${d.length}</strong></div>
+      <div class="rep-row"><span style="color:var(--tx2)">Total Expenses</span><strong class="rep-total">${fmt(tA)}</strong></div>
+      <div class="rep-row"><span style="color:var(--tx2)">Total Tax</span><strong>${fmt(tT)}</strong></div>
+      <div class="rep-row"><span style="color:var(--tx2)">Net (before tax)</span><strong>${fmt(tA-tT)}</strong></div>
+      ${d.length?`<div class="rep-row"><span style="color:var(--tx2)">Average per Receipt</span><strong>${fmt(tA/d.length)}</strong></div>`:''}
+    </div>
+    <div class="report-section">
+      <h3>By Category</h3>
+      ${Object.entries(byCat).sort((a,b)=>b[1].amt-a[1].amt).map(([cat,v])=>`
+        <div class="rep-row">
+          <span><span class="badge ${badgeClass(cat)}">${cat}</span> <span style="color:var(--tx3);font-size:11px">(${v.cnt})</span></span>
+          <div style="text-align:right"><div style="font-weight:600">${fmt(v.amt)}</div><div style="font-size:11px;color:var(--tx3)">Tax: ${fmt(v.tax)}</div></div>
+        </div>`).join('')||'<p style="color:var(--tx3);font-size:13px">No data</p>'}
+    </div>
+    <div class="report-section">
+      <h3>Top Vendors</h3>
+      ${Object.entries(byVend).sort((a,b)=>b[1].amt-a[1].amt).slice(0,15).map(([v,d])=>`
+        <div class="rep-row">
+          <span style="font-weight:500">${esc(v)}</span>
+          <div style="text-align:right"><div style="font-weight:600">${fmt(d.amt)}</div><div style="font-size:11px;color:var(--tx3)">${d.cnt} receipt${d.cnt!==1?'s':''}</div></div>
+        </div>`).join('')||'<p style="color:var(--tx3);font-size:13px">No data</p>'}
+    </div>
+    <div class="report-section">
+      <h3>Monthly Breakdown</h3>
+      ${Object.entries(byMon).sort((a,b)=>b[0].localeCompare(a[0])).map(([m,v])=>`
+        <div class="rep-row">
+          <span>${fmtYM(m)} <span style="color:var(--tx3);font-size:11px">(${v.cnt})</span></span>
+          <strong>${fmt(v.amt)}</strong>
+        </div>`).join('')||'<p style="color:var(--tx3);font-size:13px">No data</p>'}
+    </div>
+    <div class="report-section">
+      <h3>All Receipts (${d.length})</h3>
+      <div style="overflow-x:auto">
+        <table class="receipt-table" style="min-width:500px">
+          <thead><tr><th>Date</th><th>Vendor</th><th>Category</th><th>Payment</th><th>Subtotal</th><th>Tax</th><th>Total</th></tr></thead>
+          <tbody>${d.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(r=>`
+            <tr><td>${fmtDate(r.date)}</td><td class="vendor-cell">${esc(r.vendor||'—')}</td><td><span class="badge ${badgeClass(r.category)}">${r.category||'Other'}</span></td><td style="font-size:12px">${esc(r.paymentMethod||'—')}</td><td>${r.subtotal?fmt(r.subtotal):'—'}</td><td>${r.tax?fmt(r.tax):'—'}</td><td class="amt-cell">${fmt(r.total)}</td></tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// SETTINGS
+// ═══════════════════════════════════════════════════════════
+function renderSettings(){
+  el('apiKeyInput').value=settings.apiKey||'';
+  el('modelSelect').value=settings.model||'gemini-2.5-flash';
+  if(settings.apiKey) el('apiStatus').innerHTML=`<div class="api-dot" style="background:var(--green)"></div><span style="color:var(--green)">API key saved</span>`;
+  else el('apiStatus').innerHTML=`<div class="api-dot" style="background:var(--tx3)"></div><span style="color:var(--tx3)">No API key set</span>`;
+}
+function saveApiKey(){
+  const k=el('apiKeyInput').value.trim();
+  if(!k){ toast('Enter an API key first','warning'); return; }
+  settings.apiKey=k; saveSettings();
+  el('apiStatus').innerHTML=`<div class="api-dot" style="background:var(--green)"></div><span style="color:var(--green)">API key saved ✓</span>`;
+  toast('API key saved','success');
+}
+function saveModel(){
+  settings.model=el('modelSelect').value; saveSettings();
+  toast('Model updated','success');
+}
+function toggleApiVis(){
+  const inp=el('apiKeyInput'), ico=el('apiKeyEye');
+  if(inp.type==='password'){ inp.type='text'; ico.className='fas fa-eye-slash'; }
+  else { inp.type='password'; ico.className='fas fa-eye'; }
+}
+async function testApiKey(){
+  const k=el('apiKeyInput').value.trim()||settings.apiKey;
+  if(!k){ toast('Enter an API key first','warning'); return; }
+  el('apiStatus').innerHTML=`<div class="api-dot" style="background:var(--amber)"></div><span style="color:var(--amber)"><i class="fas fa-circle-notch spin-inline"></i> Testing…</span>`;
+  const model = el('modelSelect')?.value || settings.model || 'gemini-2.5-flash';
+  try {
+    const url=`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${k}`;
+    const res=await fetch(url,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({contents:[{parts:[{text:'Reply with exactly: OK'}]}],generationConfig:{maxOutputTokens:10}})
+    });
+    const data = await res.json().catch(()=>({}));
+    if(res.ok && data?.candidates?.length){
+      el('apiStatus').innerHTML=`<div class="api-dot" style="background:var(--green)"></div><span style="color:var(--green)">Connected — ${esc(model)} is working ✓</span>`;
+      toast('API key is valid and model is accessible!','success');
+    } else {
+      const msg = data?.error?.message || (res.status===404?`Model "${model}" not found or not supported`:'Invalid API key or no access to this model');
+      throw new Error(msg);
+    }
+  } catch(err){
+    el('apiStatus').innerHTML=`<div class="api-dot" style="background:var(--red)"></div><span style="color:var(--red)">${esc(err.message)}</span>`;
+    toast(err.message,'error');
+  }
+}
+function clearAllData(){
+  confirm2('Clear All Data','This will permanently delete all receipts. This cannot be undone.',async ()=>{
+    try {
+      for(const r of receipts){ await idbDelete(r.id); }
+      receipts=[];
+      updateStorage();
+      toast('All data cleared','success');
+      renderDashboard();
+    } catch(err){ toast('Clear failed: '+err.message,'error'); }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// EXPORT / IMPORT
+// ═══════════════════════════════════════════════════════════
+function csvRow(arr){ return arr.map(v=>`"${String(v||'').replace(/"/g,'""')}"`).join(','); }
+function exportCSV(){
+  const rows=[['Date','Vendor','Category','Payment Method','Subtotal','Tax','Total','Receipt #','Notes'],...receipts.map(r=>[r.date,r.vendor,r.category,r.paymentMethod,r.subtotal||0,r.tax||0,r.total||0,r.receiptNumber||'',r.notes||''])];
+  download(rows.map(csvRow).join('\n'),'receiptvault_export.csv','text/csv');
+  toast('CSV exported','success');
+}
+function exportExcelCSV(){
+  const rows=[['Date','Vendor','Category','Payment Method','Subtotal','Tax','Total','Receipt #','Notes'],...receipts.map(r=>[r.date,r.vendor,r.category,r.paymentMethod,r.subtotal||0,r.tax||0,r.total||0,r.receiptNumber||'',r.notes||''])];
+  download('\uFEFF'+rows.map(r=>r.join('\t')).join('\r\n'),'receiptvault_excel.csv','text/csv;charset=utf-8');
+  toast('Excel CSV exported','success');
+}
+function exportJSON(){
+  const data={app:'ReceiptVault AI',version:3,exportedAt:new Date().toISOString(),count:receipts.length,receipts};
+  download(JSON.stringify(data,null,2),'receiptvault_backup.json','application/json');
+  toast('JSON backup exported','success');
+}
+async function importJSON(event){
+  const f=event.target.files[0]; if(!f) return;
+  const reader=new FileReader();
+  reader.onload=async ev=>{
+    try {
+      const d=JSON.parse(ev.target.result);
+      const recs=d.receipts||(Array.isArray(d)?d:[]);
+      if(!recs.length){ toast('No receipts found in file','warning'); return; }
+      const uid = currentUser ? currentUser.uid : 'anon';
+      const existingIds = new Set(receipts.map(r=>r.id));
+      let cnt=0;
+      const toAdd = [];
+      recs.forEach(r=>{
+        if(!existingIds.has(r.id)){
+          const rec = normalizeReceiptForIDB(r, uid);
+          toAdd.push(rec);
+          cnt++;
+        }
+      });
+      await idbBulkPut(toAdd);
+      receipts.push(...toAdd);
+      updateStorage();
+      toast(`Imported ${cnt} receipts`,'success');
+      renderDashboard();
+    } catch(e){ toast('Import failed: '+e.message,'error'); }
+  };
+  reader.readAsText(f);
+}
+function download(content,name,mime){
+  const b=new Blob([content],{type:mime});
+  const u=URL.createObjectURL(b);
+  const a=document.createElement('a'); a.href=u; a.download=name; a.click(); URL.revokeObjectURL(u);
+}
+
+// ═══════════════════════════════════════════════════════════
+// MODALS
+// ═══════════════════════════════════════════════════════════
+function openModal(id){ el(id).classList.add('open'); }
+function closeModal(id){ el(id).classList.remove('open'); }
+function confirm2(title,msg,cb){
+  el('confirmTitle').textContent=title;
+  el('confirmMsg').textContent=msg;
+  el('confirmOk').onclick=()=>{cb();closeModal('confirmModal');};
+  openModal('confirmModal');
+}
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') document.querySelectorAll('.modal-bg.open').forEach(m=>m.classList.remove('open')); });
+
+// ═══════════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════════
+function toast(msg, type='info'){
+  const s=el('toastStack');
+  const t=document.createElement('div');
+  t.className=`toast ${type}`;
+  t.innerHTML=`<div class="toast-dot"></div><span>${esc(msg)}</span>`;
+  s.appendChild(t);
+  setTimeout(()=>{ t.style.transition='all .25s'; t.style.opacity='0'; t.style.transform='translateY(6px)'; setTimeout(()=>t.remove(),260); },3400);
+}
+function showLoading(msg='Processing…'){ el('loadingMsg').textContent=msg; el('loadingOverlay').classList.add('show'); }
+function hideLoading(){ el('loadingOverlay').classList.remove('show'); }
+
+// ═══════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════
+function el(id){ return document.getElementById(id); }
+function n(v){ return parseFloat(v)||0; }
+function fmt(v){ return '$'+n(v).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','); }
+function pad(v){ return String(v).padStart(2,'0'); }
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function genId(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+function todayISO(){ return new Date().toISOString().split('T')[0]; }
+function fmtDate(d){ if(!d) return '—'; try{ return new Date(d+'T12:00:00').toLocaleDateString('en-CA',{year:'numeric',month:'short',day:'numeric'}); }catch(_){ return d; } }
+function fmtYM(ym){ if(!ym) return '—'; try{ const[y,m]=ym.split('-'); return new Date(y,m-1,1).toLocaleDateString('en',{month:'long',year:'numeric'}); }catch(_){ return ym; } }
+function groupBy(arr,key,valFn){ const r={}; arr.forEach(item=>{const k=item[key]||'Other';r[k]=(r[k]||0)+valFn(item);}); return r; }
+function badgeClass(cat){
+  const m={'Fuel':'b-fuel','Meals':'b-meals','Travel':'b-travel','Office Supplies':'b-office','Inventory':'b-inventory','Advertising':'b-advertising','Utilities':'b-utilities','Software':'b-software','Vehicle':'b-vehicle','Insurance':'b-insurance','Rent':'b-rent','Other':'b-other'};
+  return m[cat]||'b-other';
+}
+async function resizeImage(b64,mime,maxPx){
+  return new Promise(ok=>{
+    const img=new Image();
+    img.onload=()=>{
+      const sc=Math.min(1,maxPx/Math.max(img.width,img.height));
+      const c=document.createElement('canvas');
+      c.width=Math.round(img.width*sc); c.height=Math.round(img.height*sc);
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+      ok(c.toDataURL('image/jpeg',.82).split(',')[1]);
+    };
+    img.src=`data:${mime};base64,${b64}`;
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// BOOT APP — runs every time a user signs in (fresh data per UID)
+// ═══════════════════════════════════════════════════════════
+let appBooted = false;
+async function bootApp(){
+  if(!idb){
+    try { await openIDB(); } catch(err){ toast('IndexedDB failed to open: '+err.message,'error'); }
+  }
+  await loadData(); // migrates old LocalStorage data, then loads THIS user's receipts from IndexedDB
+  const theme = localStorage.getItem(THEME_KEY()) || 'light';
+  document.documentElement.setAttribute('data-theme', theme);
+  el('themeIcon').className = theme==='dark' ? 'fas fa-sun' : 'fas fa-moon';
+  const dt = el('darkToggle'); if(dt) dt.className = 'toggle'+(theme==='dark'?' on':'');
+  killCharts();
+  updateStorage();
+  navHistory = ['dashboard'];
+  navigateTo('dashboard', true);
+  if(settings.apiKey) el('apiKeyInput').value = settings.apiKey;
+  el('modelSelect').value = settings.model || 'gemini-2.5-flash';
+
+  if(!appBooted){
+    appBooted = true;
+    el('mobMenuBtn').addEventListener('click',()=>el('sidebar').classList.toggle('mob-open'));
+    document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+    document.querySelectorAll('.nav-item').forEach(b=>b.addEventListener('click',()=>navigateTo(b.dataset.page)));
+    const uploadZone = el('uploadZone');
+    uploadZone.addEventListener('dragover', e=>{ e.preventDefault(); uploadZone.classList.add('drag-over'); });
+    uploadZone.addEventListener('dragleave', ()=>uploadZone.classList.remove('drag-over'));
+    uploadZone.addEventListener('drop', e=>{ e.preventDefault(); uploadZone.classList.remove('drag-over'); handleFiles(e.dataTransfer.files); });
+    el('file-input').addEventListener('change', e=>handleFiles(e.target.files));
+  }
+}
+</script>
+</body>
+</html>
